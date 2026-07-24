@@ -479,7 +479,7 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
 			if (document) {
 				const sortCodeAction = CodeAction.create('Sort JSON', sortCodeActionKind);
 				sortCodeAction.command = {
-					command: 'json.sort',
+					command: 'jsonson.sort',
 					title: l10n.t('Sort JSON')
 				};
 				return [sortCodeAction];

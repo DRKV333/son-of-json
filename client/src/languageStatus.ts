@@ -100,7 +100,7 @@ function getSettingsSchemaAssociations(uri: string) {
 						detail: association.workspaceFolder ? l10n.t('Configured in workspace settings') : l10n.t('Configured in user settings'),
 						uri: Uri.parse(association.fullUri),
 						buttons: [{ iconPath: new ThemeIcon('gear'), tooltip: l10n.t('Open Settings') }],
-						buttonCommands: [() => commands.executeCommand(association.workspaceFolder ? 'workbench.action.openWorkspaceSettingsFile' : 'workbench.action.openSettingsJson', ['json.schemas'])]
+						buttonCommands: [() => commands.executeCommand(association.workspaceFolder ? 'workbench.action.openWorkspaceSettingsFile' : 'workbench.action.openSettingsJson', ['jsonson.schemas'])]
 					};
 				}
 			}
@@ -137,7 +137,7 @@ function showSchemaList(input: ShowSchemasInput) {
 		items.push({
 			label: l10n.t('No schema configured for this file'),
 			buttons: [{ iconPath: new ThemeIcon('gear'), tooltip: l10n.t('Open Settings') }],
-			buttonCommands: [() => commands.executeCommand('workbench.action.openSettingsJson', ['json.schemas'])]
+			buttonCommands: [() => commands.executeCommand('workbench.action.openSettingsJson', ['jsonson.schemas'])]
 		});
 	}
 
@@ -164,7 +164,7 @@ function showSchemaList(input: ShowSchemasInput) {
 }
 
 export function createLanguageStatusItem(documentSelector: DocumentSelector, statusRequest: (uri: string) => Promise<JSONLanguageStatus>): Disposable {
-	const statusItem = languages.createLanguageStatusItem('json.projectStatus', documentSelector);
+	const statusItem = languages.createLanguageStatusItem('jsonson.projectStatus', documentSelector);
 	statusItem.name = l10n.t('JSON Validation Status');
 	statusItem.severity = LanguageStatusSeverity.Information;
 
@@ -269,7 +269,7 @@ const openSettingsCommand = 'workbench.action.openSettings';
 const configureSettingsLabel = l10n.t('Configure');
 
 export function createDocumentSymbolsLimitItem(documentSelector: DocumentSelector, settingId: string, limit: number): Disposable {
-	const statusItem = languages.createLanguageStatusItem('json.documentSymbolsStatus', documentSelector);
+	const statusItem = languages.createLanguageStatusItem('jsonson.documentSymbolsStatus', documentSelector);
 	statusItem.name = l10n.t('JSON Outline Status');
 	statusItem.severity = LanguageStatusSeverity.Warning;
 	statusItem.text = l10n.t('Outline');
@@ -336,7 +336,7 @@ export function createSchemaLoadStatusItem(newItem: (fileSchemaError: Diagnostic
 
 
 export function createSchemaLoadIssueItem(documentSelector: DocumentSelector, schemaDownloadEnabled: boolean | undefined, diagnostic: Diagnostic): Disposable {
-	const statusItem = languages.createLanguageStatusItem('json.documentSymbolsStatus', documentSelector);
+	const statusItem = languages.createLanguageStatusItem('jsonson.documentSymbolsStatus', documentSelector);
 	statusItem.name = l10n.t('JSON Outline Status');
 	statusItem.severity = LanguageStatusSeverity.Error;
 	statusItem.text = 'Schema download issue';

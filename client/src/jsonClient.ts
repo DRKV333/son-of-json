@@ -108,12 +108,12 @@ export type JSONSchemaSettings = {
 };
 
 export namespace SettingIds {
-	export const enableFormatter = 'json.format.enable';
-	export const enableKeepLines = 'json.format.keepLines';
-	export const enableValidation = 'json.validate.enable';
-	export const enableSchemaDownload = 'json.schemaDownload.enable';
-	export const trustedDomains = 'json.schemaDownload.trustedDomains';
-	export const maxItemsComputed = 'json.maxItemsComputed';
+	export const enableFormatter = 'jsonson.format.enable';
+	export const enableKeepLines = 'jsonson.format.keepLines';
+	export const enableValidation = 'jsonson.validate.enable';
+	export const enableSchemaDownload = 'jsonson.schemaDownload.enable';
+	export const trustedDomains = 'jsonson.schemaDownload.trustedDomains';
+	export const maxItemsComputed = 'jsonson.maxItemsComputed';
 	export const editorFoldingMaximumRegions = 'editor.foldingMaximumRegions';
 	export const editorColorDecoratorsLimit = 'editor.colorDecoratorsLimit';
 
@@ -125,12 +125,12 @@ export namespace SettingIds {
 export namespace CommandIds {
 	export const workbenchActionOpenSettings = 'workbench.action.openSettings';
 	export const workbenchTrustManage = 'workbench.trust.manage';
-	export const retryResolveSchemaCommandId = '_json.retryResolveSchema';
-	export const configureTrustedDomainsCommandId = '_json.configureTrustedDomains';
-	export const showAssociatedSchemaList = '_json.showAssociatedSchemaList';
-	export const clearCacheCommandId = 'json.clearCache';
-	export const validateCommandId = 'json.validate';
-	export const sortCommandId = 'json.sort';
+	export const retryResolveSchemaCommandId = '_jsonson.retryResolveSchema';
+	export const configureTrustedDomainsCommandId = '_jsonson.configureTrustedDomains';
+	export const showAssociatedSchemaList = '_jsonson.showAssociatedSchemaList';
+	export const clearCacheCommandId = 'jsonson.clearCache';
+	export const validateCommandId = 'jsonson.validate';
+	export const sortCommandId = 'jsonson.sort';
 }
 
 export interface TelemetryReporter {
@@ -220,7 +220,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 
 	const documentSelector = languageParticipants.documentSelector;
 
-	const schemaResolutionErrorStatusBarItem = window.createStatusBarItem('status.json.resolveError', StatusBarAlignment.Right, 0);
+	const schemaResolutionErrorStatusBarItem = window.createStatusBarItem('status.jsonson.resolveError', StatusBarAlignment.Right, 0);
 	schemaResolutionErrorStatusBarItem.name = l10n.t('JSON: Schema Resolution Error');
 	schemaResolutionErrorStatusBarItem.text = '$(alert)';
 	toDispose.push(schemaResolutionErrorStatusBarItem);
@@ -283,7 +283,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		documentSelector,
 		initializationOptions: {
 			handledSchemaProtocols: ['file'], // language server only loads file-URI. Fetching schemas with other protocols ('http'...) are made on the client.
-			provideFormatter: false, // tell the server to not provide formatting capability and ignore the `json.format.enable` setting.
+			provideFormatter: false, // tell the server to not provide formatting capability and ignore the `jsonson.format.enable` setting.
 			customCapabilities: { rangeFormatting: { editLimit: 10000 } }
 		},
 		synchronize: {

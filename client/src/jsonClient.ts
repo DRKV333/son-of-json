@@ -772,7 +772,7 @@ async function computeSchemaAssociations(): Promise<ISchemaAssociation[]> {
 
 function getSchemaExtensionAssociations(): ISchemaAssociation[] {
 	const associations: ISchemaAssociation[] = [];
-	extensions.allAcrossExtensionHosts.forEach(extension => {
+	extensions.all.forEach(extension => {
 		const packageJSON = extension.packageJSON;
 		if (packageJSON && packageJSON.contributes && packageJSON.contributes.jsonValidation) {
 			const jsonValidation = packageJSON.contributes.jsonValidation;

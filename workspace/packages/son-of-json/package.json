@@ -9,9 +9,6 @@
   "engines": {
     "vscode": "^1.77.0"
   },
-  "enabledApiProposals": [
-    "extensionsAny"
-  ],
   "icon": "icons/json.png",
   "activationEvents": [
     "onLanguage:json",

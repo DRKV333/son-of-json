@@ -44,7 +44,7 @@ export function getLanguageParticipants(): LanguageParticipants {
 		comments.add('jsonc');
 		comments.add('snippets');
 
-		for (const extension of extensions.allAcrossExtensionHosts) {
+		for (const extension of extensions.all) {
 			const jsonLanguageParticipants = extension.packageJSON?.contributes?.jsonLanguageParticipants as LanguageParticipantContribution[];
 			if (Array.isArray(jsonLanguageParticipants)) {
 				for (const jsonLanguageParticipant of jsonLanguageParticipants) {

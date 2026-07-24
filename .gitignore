@@ -1,0 +1,3 @@
+node_modules
+workspace/packages/son-of-json/out
+workspace/packages/son-of-json-languageserver/out

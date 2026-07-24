@@ -11,7 +11,6 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { xhr, XHRResponse, getErrorStatusDescription, Headers } from 'request-light';
 
-import TelemetryReporter from '@vscode/extension-telemetry';
 import { JSONSchemaCache } from './schemaCache';
 
 let client: AsyncDisposable | undefined;
@@ -19,8 +18,6 @@ let client: AsyncDisposable | undefined;
 // this method is called when vs code is activated
 export async function activate(context: ExtensionContext) {
 	const clientPackageJSON = await getPackageInfo(context);
-	const telemetry = new TelemetryReporter(clientPackageJSON.aiKey);
-	context.subscriptions.push(telemetry);
 
 	const logOutputChannel = window.createOutputChannel(languageServerDescription, { log: true });
 	context.subscriptions.push(logOutputChannel);
@@ -54,7 +51,7 @@ export async function activate(context: ExtensionContext) {
 
 	const schemaRequests = await getSchemaRequestService(context, logOutputChannel);
 
-	client = await startClient(context, newLanguageClient, { schemaRequests, telemetry, timer, logOutputChannel });
+	client = await startClient(context, newLanguageClient, { schemaRequests, timer, logOutputChannel });
 }
 
 export async function deactivate(): Promise<any> {

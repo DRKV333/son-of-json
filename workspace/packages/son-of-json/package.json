@@ -112,7 +112,7 @@
         },
         "jsonson.schemaDownload.enable": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "%jsonson.enableSchemaDownload.desc%",
           "tags": [
             "usesOnlineServices"

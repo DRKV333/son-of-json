@@ -1,0 +1,7 @@
+{
+    "name": "son-of-json-workspace",
+    "workspaces": [
+        "packages/son-of-json",
+        "packages/son-of-json-languageserver"
+    ]
+}

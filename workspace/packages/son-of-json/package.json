@@ -169,12 +169,12 @@
       {
         "command": "jsonson.clearCache",
         "title": "%jsonson.command.clearCache%",
-        "category": "JSON"
+        "category": "Son of JSON"
       },
       {
         "command": "jsonson.sort",
         "title": "%jsonson.command.sort%",
-        "category": "JSON"
+        "category": "Son of JSON"
       }
     ]
   },

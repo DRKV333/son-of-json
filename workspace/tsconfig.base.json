@@ -5,7 +5,7 @@
 		"lib": [
 			"ES2024"
 		],
-		"module": "commonjs",
+		"module": "nodenext",
 		"strict": true,
 		"exactOptionalPropertyTypes": false,
 		"useUnknownInCatchVariables": false,

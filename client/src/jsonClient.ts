@@ -19,10 +19,10 @@ import {
 } from 'vscode-languageclient';
 
 
-import { hash } from './utils/hash';
-import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus';
-import { getLanguageParticipants, LanguageParticipants } from './languageParticipants';
-import { matchesUrlPattern } from './utils/urlMatch';
+import { hash } from './utils/hash.js';
+import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
+import { getLanguageParticipants, LanguageParticipants } from './languageParticipants.js';
+import { matchesUrlPattern } from './utils/urlMatch.js';
 
 namespace VSCodeContentRequest {
 	export const type: RequestType<string, string, any> = new RequestType('vscode/content');

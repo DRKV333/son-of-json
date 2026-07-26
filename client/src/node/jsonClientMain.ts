@@ -4,14 +4,15 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable, ExtensionContext, LogOutputChannel, window, l10n, env, LogLevel } from 'vscode';
-import { startClient, LanguageClientConstructor, SchemaRequestService, languageServerDescription, AsyncDisposable } from '../jsonClient';
+import { startClient, LanguageClientConstructor, SchemaRequestService, languageServerDescription, AsyncDisposable } from '../jsonClient.js';
 import { ServerOptions, TransportKind, LanguageClientOptions, LanguageClient } from 'vscode-languageclient/node';
 
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { xhr, XHRResponse, getErrorStatusDescription, Headers } from 'request-light';
+import requestLight, { XHRResponse, Headers } from 'request-light';
+const { xhr, getErrorStatusDescription, } = requestLight
 
-import { JSONSchemaCache } from './schemaCache';
+import { JSONSchemaCache } from './schemaCache.js';
 
 let client: AsyncDisposable | undefined;
 

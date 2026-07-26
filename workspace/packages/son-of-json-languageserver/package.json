@@ -11,7 +11,7 @@
   "bin": {
     "vscode-json-languageserver": "./bin/vscode-json-languageserver"
   },
-  "main": "./out/node/jsonServerMain",
+  "main": "./out/node/jsonServerMain.js",
   "dependencies": {
     "@vscode/l10n": "^0.0.18",
     "jsonc-parser": "^4.0.0-next.1",

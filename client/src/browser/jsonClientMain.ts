@@ -5,7 +5,7 @@
 
 import { Disposable, ExtensionContext, Uri, l10n, window } from 'vscode';
 import { LanguageClientOptions } from 'vscode-languageclient';
-import { startClient, LanguageClientConstructor, SchemaRequestService, AsyncDisposable, languageServerDescription } from '../jsonClient';
+import { startClient, LanguageClientConstructor, SchemaRequestService, AsyncDisposable, languageServerDescription } from '../jsonClient.js';
 import { LanguageClient } from 'vscode-languageclient/browser';
 
 let client: AsyncDisposable | undefined;

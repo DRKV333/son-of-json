@@ -7,7 +7,6 @@
 			"ES2024",
 			"webworker"
 		],
-		"module": "Node16",
 		"types": [
 			"node",
 			"vscode"

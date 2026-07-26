@@ -9,7 +9,6 @@
 			"ES2024",
 			"WebWorker"
 		],
-		"module": "esnext",
 		"types": [
 			"node"
 		],

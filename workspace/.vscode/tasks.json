@@ -1,11 +1,70 @@
 {
-	"version": "2.0.0",
-	"command": "npm",
-	"type": "shell",
-	"presentation": {
-		"reveal": "silent"
-	},
-	"args": ["run", "compile"],
-	"isBackground": true,
-	"problemMatcher": "$tsc-watch"
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile",
+            "type": "npm",
+            "script": "compile",
+            "problemMatcher": "$tsc",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "shell": {
+                    "args": [ "-i" ]
+                }
+            }
+        },
+        {
+            "label": "Watch Server",
+            "type": "npm",
+            "script": "watch-server",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never",
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "shell": {
+                    "args": [ "-i" ]
+                }
+            }
+        },
+        {
+            "label": "Watch Client",
+            "type": "npm",
+            "script": "watch-client",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never",
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "shell": {
+                    "args": [ "-i" ]
+                }
+            }
+        },
+        {
+            "label": "Watch",
+            "dependsOn": [
+                "Watch Server",
+                "Watch Client"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        }
+    ],
+
 }

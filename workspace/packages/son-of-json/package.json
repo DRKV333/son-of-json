@@ -15,7 +15,7 @@
     "onLanguage:snippets",
     "onCommand:jsonson.validate"
   ],
-  "main": "./client/out/node/jsonClientMain",
+  "main": "./out/node/jsonClientMain",
   "browser": "./client/dist/browser/jsonClientMain",
   "capabilities": {
     "virtualWorkspaces": true,
@@ -23,11 +23,6 @@
       "supported": "limited",
       "description": "%jsonson.workspaceTrust%"
     }
-  },
-  "scripts": {
-    "compile": "npx gulp compile-extension:json-language-features-client compile-extension:json-language-features-server",
-    "watch": "npx gulp watch-extension:json-language-features-client watch-extension:json-language-features-server",
-    "install-client-next": "npm install vscode-languageclient@next"
   },
   "categories": [
     "Programming Languages"
@@ -189,8 +184,7 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.125.0",
-    "@types/node": "24.x",
-    "typescript": "^6.0.3"
+    "@types/node": "24.x"
   },
   "repository": {
     "type": "git",

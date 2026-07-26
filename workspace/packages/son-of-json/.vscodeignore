@@ -1,0 +1,11 @@
+**/*
+
+!LICENSE.txt
+!package.json
+!package.nls.json
+!README.md
+!icons/json.png
+!dist/node/*
+!server/package.json
+!server/README.md
+!server/dist/node/*

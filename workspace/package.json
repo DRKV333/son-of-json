@@ -8,12 +8,22 @@
         "compile": "npx tsc -p ./packages/son-of-json-languageserver && npx tsc -p ./packages/son-of-json",
         "watch-server": "npx tsc -w -p ./packages/son-of-json-languageserver",
         "watch-client": "npx tsc -w -p ./packages/son-of-json",
-        "bundle": "npm run compile && npx webpack-cli build -c webpack.config.mjs"
+        "bundle": "npm run compile && npx webpack-cli build -c webpack.config.mjs",
+        "patch-dist": "git apply --ignore-whitespace --unidiff-zero packages/son-of-json/package.dist.patch",
+        "unpatch-dist": "git apply --ignore-whitespace --unidiff-zero -R packages/son-of-json/package.dist.patch",
+        "package-vsce": "cd packages/son-of-json && npx vsce pack --follow-symlinks --no-dependencies",
+        "package": "npm run bundle && npm run patch-dist && npm run package-vsce && npm run unpatch-dist"
     },
     "devDependencies": {
         "@types/node": "24.x",
+        "@vscode/vsce": "^3.9.2",
         "typescript": "^6.0.3",
         "webpack": "^5.109.0",
         "webpack-cli": "^7.2.1"
+    },
+    "overrides": {
+        "vscode-languageclient": {
+            "vscode-languageserver-textdocument": "1.0.12"
+        }
     }
 }

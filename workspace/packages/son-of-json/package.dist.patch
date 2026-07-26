@@ -1,0 +1,6 @@
+diff --git a/workspace/packages/son-of-json/package.json b/workspace/packages/son-of-json/package.json
+--- a/workspace/packages/son-of-json/package.json
++++ b/workspace/packages/son-of-json/package.json
+@@ -2 +2 @@
+-  "main": "./out/node/jsonClientMain.js",
++  "main": "./dist/node/jsonClientMain.js",

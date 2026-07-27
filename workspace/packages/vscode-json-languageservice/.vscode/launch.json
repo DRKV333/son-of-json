@@ -1,0 +1,35 @@
+{
+	"version": "0.1.0",
+	// List of configurations. Add new configurations or edit existing ones.
+	"configurations": [
+		{
+			"name": "Attach",
+			"type": "node",
+			"request": "attach",
+			"port": 6004,
+			"sourceMaps": true,
+			"outFiles": [ "${workspaceRoot}/lib/umd/**/*.js" ]
+		},
+		{
+			"name": "Unit Tests",
+			"type": "node",
+			"request": "launch",
+			"runtimeArgs": [
+				"--test",
+				"./lib/esm/test/*.test.js"
+			],
+			"cwd": "${workspaceRoot}",
+			"sourceMaps": true,
+			"outFiles": [ "${workspaceRoot}/lib/esm/**/*.js" ],
+			"preLaunchTask": "npm: watch"
+		},
+		{
+			"name": "Attach Language Server",
+			"type": "node",
+			"request": "attach",
+			"port": 6004,
+			"sourceMaps": true,
+			"outFiles": [ "${workspaceRoot}/server/out/**/*.js" ]
+		}
+	]
+}

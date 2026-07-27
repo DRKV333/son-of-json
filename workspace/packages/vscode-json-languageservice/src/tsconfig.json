@@ -1,0 +1,18 @@
+{
+	"compilerOptions": {
+		"target": "es2020",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"sourceMap": true,
+		"declaration": true,
+		"stripInternal": true,
+		"outDir": "../lib/esm",
+		"lib": [
+			"es2020",
+		],
+		"types": [
+			"node"
+		],
+		"strict": true
+	}
+}

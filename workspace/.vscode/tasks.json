@@ -55,10 +55,30 @@
             }
         },
         {
+            "label": "Watch Language Services",
+            "type": "npm",
+            "script": "watch-lib",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never",
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "shell": {
+                    "args": [ "-i" ]
+                }
+            }
+        },
+        {
             "label": "Watch",
             "dependsOn": [
                 "Watch Server",
-                "Watch Client"
+                "Watch Client",
+                "Watch Language Services"
             ],
             "group": {
                 "kind": "build",

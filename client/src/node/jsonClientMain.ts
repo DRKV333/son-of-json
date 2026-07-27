@@ -27,7 +27,7 @@ export async function activate(context: ExtensionContext) {
 	const serverModule = context.asAbsolutePath(serverMain);
 
 	// The debug options for the server
-	const debugOptions = { execArgv: ['--nolazy', '--inspect=' + (6000 + Math.round(Math.random() * 999))] };
+	const debugOptions = { execArgv: ['--nolazy', '--inspect=6004'] };
 
 	// If the extension is launch in debug mode the debug server options are use
 	// Otherwise the run options are used

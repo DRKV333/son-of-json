@@ -17,7 +17,7 @@ export default [
                 type: "module"
             }
         },
-        devtool: "source-map",
+        devtool: "nosources-source-map",
         externals: {
             vscode: "commonjs vscode"
         },
@@ -31,7 +31,7 @@ export default [
             path: path.resolve(import.meta.dirname, "packages", "son-of-json-languageserver", "dist", "node"),
             filename: "jsonServerMain.js",
         },
-        devtool: "source-map",
+        devtool: "nosources-source-map",
         experiments: { outputModule: true }
     }
 ];

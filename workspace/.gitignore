@@ -1,0 +1,6 @@
+node_modules
+packages/son-of-json/out
+packages/son-of-json-languageserver/out
+packages/son-of-json/dist
+packages/son-of-json-languageserver/dist
+*.vsix

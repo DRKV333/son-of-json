@@ -288,7 +288,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		},
 		synchronize: {
 			// Synchronize the setting section 'json' to the server
-			configurationSection: ['json', 'http'],
+			configurationSection: ['jsonson', 'http'],
 			fileEvents: workspace.createFileSystemWatcher('**/*.json')
 		},
 		middleware: {

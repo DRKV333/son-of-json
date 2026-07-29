@@ -880,7 +880,7 @@ function computeSettings(): Settings {
 
 	const folders = workspace.workspaceFolders ?? [];
 
-	const schemaConfigInfo = workspace.getConfiguration('json', null).inspect<JSONSchemaSettings[]>('schemas');
+	const schemaConfigInfo = workspace.getConfiguration('jsonson', null).inspect<JSONSchemaSettings[]>('schemas');
 	if (schemaConfigInfo) {
 		// settings in user config
 		collectSchemaSettings(schemaConfigInfo.globalValue, undefined, undefined);
@@ -892,7 +892,7 @@ function computeSettings(): Settings {
 			}
 			for (const folder of folders) {
 				const folderUri = folder.uri;
-				const folderSchemaConfigInfo = workspace.getConfiguration('json', folderUri).inspect<JSONSchemaSettings[]>('schemas');
+				const folderSchemaConfigInfo = workspace.getConfiguration('jsonson', folderUri).inspect<JSONSchemaSettings[]>('schemas');
 				collectSchemaSettings(folderSchemaConfigInfo?.workspaceFolderValue, folderUri.toString(false), folderUri);
 			}
 		} else {

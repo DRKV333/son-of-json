@@ -11,7 +11,7 @@ import {
 
 import { runSafe, runSafeAsync } from './utils/runner.js';
 import { DiagnosticsSupport, registerDiagnosticsPullSupport, registerDiagnosticsPushSupport } from './utils/validation.js';
-import { TextDocument, JSONDocument, JSONSchema, getLanguageService, DocumentLanguageSettings, SchemaConfiguration, ClientCapabilities, Range, Position, SortOptions, SeverityLevel } from 'vscode-json-languageservice';
+import { TextDocument, JSONDocument, getLanguageService, DocumentLanguageSettings, SchemaConfiguration, ClientCapabilities, Range, Position, SortOptions, SeverityLevel } from 'vscode-json-languageservice';
 import { getLanguageModelCache } from './languageModelCache.js';
 import { Utils, URI } from 'vscode-uri';
 import * as l10n from '@vscode/l10n';
@@ -236,9 +236,10 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
 	}
 
 	interface JSONSchemaSettings {
+		uri?: string;
+		retrievalUri?: string;
 		fileMatch?: string[];
-		url?: string;
-		schema?: JSONSchema;
+		schema?: any;
 		folderUri?: string;
 	}
 
@@ -379,12 +380,12 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
 		}
 		if (jsonConfigurationSettings) {
 			jsonConfigurationSettings.forEach((schema, index) => {
-				let uri = schema.url;
+				let uri = schema.uri;
 				if (!uri && schema.schema) {
 					uri = schema.schema.id || `vscode://schemas/custom/${index}`;
 				}
 				if (uri) {
-					languageSettings.schemas.push({ uri, fileMatch: schema.fileMatch, schema: schema.schema, folderUri: schema.folderUri });
+					languageSettings.schemas.push({ uri, retrievalUri: schema.retrievalUri, fileMatch: schema.fileMatch, schema: schema.schema, folderUri: schema.folderUri });
 				}
 			});
 		}

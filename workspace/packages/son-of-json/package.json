@@ -41,22 +41,26 @@
           "items": {
             "type": "object",
             "default": {
-              "fileMatch": [
-                "/myfile"
-              ],
-              "url": "schemaURL"
+              "uri": "http://example.com/my-schema",
+              "schemaFile": "schemas/my-schema.schema.json"
             },
             "properties": {
-              "url": {
+              "uri": {
                 "type": "string",
-                "default": "/user.schema.json",
-                "markdownDescription": "%jsonson.schemas.url.desc%"
+                "markdownDescription": "%jsonson.schemas.uri.desc%"
+              },
+              "schemaFile": {
+                "type": "string",
+                "description": "%jsonson.schemas.schemaFile.desc%"
+              },
+              "retrievalUri": {
+                "type": "string",
+                "description": "%jsonson.schemas.retrievalUri.desc%"
               },
               "fileMatch": {
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "default": "MyFile.json",
                   "markdownDescription": "%jsonson.schemas.fileMatch.item.desc%"
                 },
                 "minItems": 1,

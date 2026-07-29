@@ -192,6 +192,9 @@ export interface SchemaConfiguration {
 	 * The URI of the schema, which is also the identifier of the schema.
 	 */
 	uri: string;
+
+	retrievalUri?: string,
+
 	/**
 	 * A list of glob patterns that describe for which file URIs the JSON schema will be used.
 	 * '*' and '**' wildcards are supported. Exclusion patterns start with '!'.

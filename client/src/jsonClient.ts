@@ -101,8 +101,10 @@ type Settings = {
 };
 
 export type JSONSchemaSettings = {
+	uri?: string;
+	schemaFile?: string;
+	retrievalUri?: string;
 	fileMatch?: string[];
-	url?: string;
 	schema?: any;
 	folderUri?: string;
 };
@@ -674,8 +676,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		const settingsCache = getSettings(false);
 		if (settingsCache.json && settingsCache.json.schemas) {
 			for (const schemaSetting of settingsCache.json.schemas) {
-				const schemaUri = schemaSetting.url;
-				if (schemaUri === uriString) {
+				if (schemaSetting.retrievalUri === uriString) {
 					return true;
 				}
 			}
@@ -824,7 +825,74 @@ async function getDynamicSchemaAssociations(): Promise<ISchemaAssociation[]> {
 	return result;
 }
 
+export function computeSchemas(scope: Uri | null): JSONSchemaSettings[] {
+	const schemas: JSONSchemaSettings[] = [];
 
+	/*
+	 * Add schemas from the settings
+	 * folderUri to which folder the setting is scoped to. `undefined` means global (also external files)
+	 * settingsLocation against which path relative schema URLs are resolved
+	 */
+	const collectSchemaSettings = (schemaSettings: JSONSchemaSettings[] | undefined, folderUri: string | undefined, settingsLocation: Uri | undefined) => {
+		if (schemaSettings) {
+			for (const setting of schemaSettings) {
+				const uri = getSchemaId(setting);
+				if (uri) {
+					if (settingsLocation && setting.schemaFile) {
+						setting.retrievalUri = Uri.joinPath(settingsLocation, setting.schemaFile).toString();
+					}
+
+					const schemaSetting: JSONSchemaSettings = { uri, retrievalUri: setting.retrievalUri, fileMatch: setting.fileMatch, folderUri, schema: setting.schema };
+					schemas.push(schemaSetting);
+				}
+			}
+		}
+	};
+
+	let folders = workspace.workspaceFolders ?? [];
+	if (scope) {
+		const scopeFolder = workspace.getWorkspaceFolder(scope);
+		if (scopeFolder) {
+			folders = [ scopeFolder ];
+		}
+	}
+
+	const schemaConfigInfo = workspace.getConfiguration('jsonson', null).inspect<JSONSchemaSettings[]>('schemas');
+	if (schemaConfigInfo) {
+		if (workspace.workspaceFile) {
+			// settings in user config
+			collectSchemaSettings(schemaConfigInfo.globalValue, undefined, undefined);
+
+			if (schemaConfigInfo.workspaceValue) {
+				const settingsLocation = Uri.joinPath(workspace.workspaceFile, '..');
+				// settings in the workspace configuration file apply to all files (also external files)
+				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, settingsLocation);
+			}
+
+			for (const folder of folders) {
+				const folderUri = folder.uri;
+				const folderSchemaConfigInfo = workspace.getConfiguration('jsonson', folderUri).inspect<JSONSchemaSettings[]>('schemas');
+				collectSchemaSettings(folderSchemaConfigInfo?.workspaceFolderValue, folderUri.toString(false), folderUri);
+			}
+		} else {
+			let locationUri: Uri | undefined = undefined;
+
+			if (folders.length === 1) {
+				locationUri = folders[0].uri;
+			}
+
+			// settings in user config
+			collectSchemaSettings(schemaConfigInfo.globalValue, undefined, locationUri);
+
+			if (schemaConfigInfo.workspaceValue) {
+				// single folder workspace: settings apply to all files (also external files)
+				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, locationUri);
+			}
+		}
+	}
+
+	return schemas;
+}
 
 function computeSettings(): Settings {
 	const configuration = workspace.getConfiguration();
@@ -841,8 +909,6 @@ function computeSettings(): Settings {
 	jsonColorDecoratorLimit = normalizeLimit(editorJSONSettings.get(SettingIds.colorDecoratorsLimit));
 	jsoncColorDecoratorLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.colorDecoratorsLimit));
 
-	const schemas: JSONSchemaSettings[] = [];
-
 	const settings: Settings = {
 		http: {
 			proxy: httpSettings.get('proxy'),
@@ -852,7 +918,7 @@ function computeSettings(): Settings {
 			validate: { enable: configuration.get(SettingIds.enableValidation) },
 			format: { enable: configuration.get(SettingIds.enableFormatter) },
 			keepLines: { enable: configuration.get(SettingIds.enableKeepLines) },
-			schemas,
+			schemas: computeSchemas(null),
 			resultLimit: resultLimit + 1, // ask for one more so we can detect if the limit has been exceeded
 			jsonFoldingLimit: jsonFoldingLimit + 1,
 			jsoncFoldingLimit: jsoncFoldingLimit + 1,
@@ -861,60 +927,23 @@ function computeSettings(): Settings {
 		}
 	};
 
-	/*
-	 * Add schemas from the settings
-	 * folderUri to which folder the setting is scoped to. `undefined` means global (also external files)
-	 * settingsLocation against which path relative schema URLs are resolved
-	 */
-	const collectSchemaSettings = (schemaSettings: JSONSchemaSettings[] | undefined, folderUri: string | undefined, settingsLocation: Uri | undefined) => {
-		if (schemaSettings) {
-			for (const setting of schemaSettings) {
-				const url = getSchemaId(setting, settingsLocation);
-				if (url) {
-					const schemaSetting: JSONSchemaSettings = { url, fileMatch: setting.fileMatch, folderUri, schema: setting.schema };
-					schemas.push(schemaSetting);
-				}
-			}
-		}
-	};
-
-	const folders = workspace.workspaceFolders ?? [];
-
-	const schemaConfigInfo = workspace.getConfiguration('jsonson', null).inspect<JSONSchemaSettings[]>('schemas');
-	if (schemaConfigInfo) {
-		// settings in user config
-		collectSchemaSettings(schemaConfigInfo.globalValue, undefined, undefined);
-		if (workspace.workspaceFile) {
-			if (schemaConfigInfo.workspaceValue) {
-				const settingsLocation = Uri.joinPath(workspace.workspaceFile, '..');
-				// settings in the workspace configuration file apply to all files (also external files)
-				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, settingsLocation);
-			}
-			for (const folder of folders) {
-				const folderUri = folder.uri;
-				const folderSchemaConfigInfo = workspace.getConfiguration('jsonson', folderUri).inspect<JSONSchemaSettings[]>('schemas');
-				collectSchemaSettings(folderSchemaConfigInfo?.workspaceFolderValue, folderUri.toString(false), folderUri);
-			}
-		} else {
-			if (schemaConfigInfo.workspaceValue && folders.length === 1) {
-				// single folder workspace: settings apply to all files (also external files)
-				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, folders[0].uri);
-			}
-		}
-	}
 	return settings;
 }
 
-function getSchemaId(schema: JSONSchemaSettings, settingsLocation?: Uri): string | undefined {
-	let url = schema.url;
-	if (!url) {
-		if (schema.schema) {
-			url = schema.schema.id || `vscode://schemas/custom/${encodeURIComponent(hash(schema.schema).toString(16))}`;
-		}
-	} else if (settingsLocation && (url[0] === '.' || url[0] === '/')) {
-		url = Uri.joinPath(settingsLocation, url).toString(false);
+function getSchemaId(schema: JSONSchemaSettings): string | undefined {
+	if (schema.uri) {
+		return schema.uri;
 	}
-	return url;
+
+	if (schema.retrievalUri) {
+		return schema.retrievalUri;
+	}
+
+	if (schema.schema) {
+		return schema.schema.id || `vscode://schemas/custom/${encodeURIComponent(hash(schema.schema).toString(16))}`;
+	}
+
+	return undefined;
 }
 
 function isThenable<T>(obj: unknown): obj is Thenable<T> {

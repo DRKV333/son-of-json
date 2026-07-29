@@ -140,25 +140,28 @@ type SchemaDependencies = Set<string>;
 class SchemaHandle implements ISchemaHandle {
 
 	public readonly uri: string;
+	public readonly retrievalUri: string | undefined;
 	public readonly dependencies: SchemaDependencies;
 	public anchors: Map<string, JSONSchema> | undefined;
 	private resolvedSchema: PromiseLike<ResolvedSchema> | undefined;
 	private unresolvedSchema: PromiseLike<UnresolvedSchema> | undefined;
 	private readonly service: JSONSchemaService;
 
-	constructor(service: JSONSchemaService, uri: string, unresolvedSchemaContent?: JSONSchema) {
+	constructor(service: JSONSchemaService, uri: string, unresolvedSchemaContent: JSONSchema | string) {
 		this.service = service;
 		this.uri = uri;
 		this.dependencies = new Set();
 		this.anchors = undefined;
-		if (unresolvedSchemaContent) {
+		if (typeof unresolvedSchemaContent == "string") {
+			this.retrievalUri = unresolvedSchemaContent
+		} else {
 			this.unresolvedSchema = this.service.promise.resolve(new UnresolvedSchema(unresolvedSchemaContent));
 		}
 	}
 
 	public getUnresolvedSchema(): PromiseLike<UnresolvedSchema> {
 		if (!this.unresolvedSchema) {
-			this.unresolvedSchema = this.service.loadSchema(this.uri);
+			this.unresolvedSchema = this.service.loadSchema(this.retrievalUri!);
 		}
 		return this.unresolvedSchema;
 	}
@@ -401,14 +404,14 @@ export class JSONSchemaService implements IJSONSchemaService {
 		}
 	}
 
-	private addSchemaHandle(id: string, unresolvedSchemaContent?: JSONSchema): SchemaHandle {
+	private addSchemaHandle(id: string, unresolvedSchemaContent: JSONSchema | string): SchemaHandle {
 		const schemaHandle = new SchemaHandle(this, id, unresolvedSchemaContent);
 		this.schemasById[id] = schemaHandle;
 		return schemaHandle;
 	}
 
-	private getOrAddSchemaHandle(id: string, unresolvedSchemaContent?: JSONSchema): SchemaHandle {
-		return this.schemasById[id] || this.addSchemaHandle(id, unresolvedSchemaContent);
+	private getOrAddSchemaHandle(id: string, unresolvedSchemaContent?: JSONSchema | string): SchemaHandle {
+		return this.schemasById[id] || this.addSchemaHandle(id, unresolvedSchemaContent || id);
 	}
 
 	private addFilePatternAssociation(pattern: string[], folderUri: string | undefined, uris: string[]): FilePatternAssociation {
@@ -425,7 +428,7 @@ export class JSONSchemaService implements IJSONSchemaService {
 		if (config.fileMatch && config.fileMatch.length) {
 			this.addFilePatternAssociation(config.fileMatch, config.folderUri, [id]);
 		}
-		return config.schema ? this.addSchemaHandle(id, config.schema) : this.getOrAddSchemaHandle(id);
+		return config.schema ? this.addSchemaHandle(id, config.schema) : this.getOrAddSchemaHandle(id, config.retrievalUri);
 	}
 
 	public clearExternalSchemas(): void {

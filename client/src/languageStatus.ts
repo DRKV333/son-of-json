@@ -5,10 +5,10 @@
 
 import {
 	window, languages, Uri, Disposable, commands, QuickPickItem,
-	extensions, workspace, Extension, WorkspaceFolder, QuickPickItemKind,
+	extensions, workspace, Extension, QuickPickItemKind,
 	ThemeIcon, TextDocument, LanguageStatusSeverity, l10n, DocumentSelector, Diagnostic
 } from 'vscode';
-import { CommandIds, ErrorCodes, isSchemaResolveError, JSONLanguageStatus, JSONSchemaSettings, SettingIds } from './jsonClient.js';
+import { CommandIds, computeSchemas, ErrorCodes, isSchemaResolveError, JSONLanguageStatus, SettingIds } from './jsonClient.js';
 
 type ShowSchemasInput = {
 	schemas: string[];
@@ -58,49 +58,16 @@ function getExtensionSchemaAssociations() {
 //
 
 function getSettingsSchemaAssociations(uri: string) {
-	const resourceUri = Uri.parse(uri);
-	const workspaceFolder = workspace.getWorkspaceFolder(resourceUri);
+	const schemas = computeSchemas(Uri.parse(uri));
 
-	const settings = workspace.getConfiguration('json', resourceUri).inspect<JSONSchemaSettings[]>('schemas');
-
-	const associations: { fullUri: string; workspaceFolder: WorkspaceFolder | undefined; label: string }[] = [];
-
-	const folderSettingSchemas = settings?.workspaceFolderValue;
-	if (workspaceFolder && Array.isArray(folderSettingSchemas)) {
-		for (const setting of folderSettingSchemas) {
-			const uri = setting.url;
-			if (typeof uri === 'string') {
-				let fullUri = uri;
-				if (uri[0] === '.' && uri[1] === '/') {
-					fullUri = Uri.joinPath(workspaceFolder.uri, uri).toString(false);
-				}
-				associations.push({ fullUri, workspaceFolder, label: uri });
-			}
-		}
-	}
-	const userSettingSchemas = settings?.globalValue;
-	if (Array.isArray(userSettingSchemas)) {
-		for (const setting of userSettingSchemas) {
-			const uri = setting.url;
-			if (typeof uri === 'string') {
-				let fullUri = uri;
-				if (workspaceFolder && uri[0] === '.' && uri[1] === '/') {
-					fullUri = Uri.joinPath(workspaceFolder.uri, uri).toString(false);
-				}
-				associations.push({ fullUri, workspaceFolder: undefined, label: uri });
-			}
-		}
-	}
 	return {
 		findSetting(uri: string): ShowSchemasItem | undefined {
-			for (const association of associations) {
-				if (association.fullUri === uri) {
+			for (const schema of schemas) {
+				if (schema.uri === uri) {
 					return {
-						label: association.label,
-						detail: association.workspaceFolder ? l10n.t('Configured in workspace settings') : l10n.t('Configured in user settings'),
-						uri: Uri.parse(association.fullUri),
-						buttons: [{ iconPath: new ThemeIcon('gear'), tooltip: l10n.t('Open Settings') }],
-						buttonCommands: [() => commands.executeCommand(association.workspaceFolder ? 'workbench.action.openWorkspaceSettingsFile' : 'workbench.action.openSettingsJson', ['jsonson.schemas'])]
+						label: schema.uri,
+						detail: l10n.t('Configured in user or workspace settings'),
+						uri: schema.retrievalUri ? Uri.parse(schema.retrievalUri) : undefined
 					};
 				}
 			}

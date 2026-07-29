@@ -153,7 +153,7 @@ class SchemaHandle implements ISchemaHandle {
 		this.dependencies = new Set();
 		this.anchors = undefined;
 		if (typeof unresolvedSchemaContent == "string") {
-			this.retrievalUri = unresolvedSchemaContent
+			this.retrievalUri = normalizeId(unresolvedSchemaContent);
 		} else {
 			this.unresolvedSchema = this.service.promise.resolve(new UnresolvedSchema(unresolvedSchemaContent));
 		}
@@ -372,7 +372,7 @@ export class JSONSchemaService implements IJSONSchemaService {
 			const curr = toWalk.pop()!;
 			for (let i = 0; i < all.length; i++) {
 				const handle = all[i];
-				if (handle && (handle.uri === curr || handle.dependencies.has(curr))) {
+				if (handle && (handle.retrievalUri === curr || handle.dependencies.has(curr))) {
 					if (handle.uri !== curr) {
 						toWalk.push(handle.uri);
 					}
@@ -886,7 +886,10 @@ export class JSONSchemaService implements IJSONSchemaService {
 			uri = normalizeId(uri);
 			const referencedHandle = this.getOrAddSchemaHandle(uri);
 			return referencedHandle.getUnresolvedSchema().then(unresolvedSchema => {
-				parentHandle.dependencies.add(uri);
+				if (referencedHandle.retrievalUri) {
+					parentHandle.dependencies.add(referencedHandle.retrievalUri);
+				}
+
 				if (unresolvedSchema.errors.length) {
 					const error = unresolvedSchema.errors[0];
 					const loc = refSegment ? uri + '#' + refSegment : uri;

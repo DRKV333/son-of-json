@@ -21,7 +21,7 @@ import {
 
 import { hash } from './utils/hash.js';
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
-import { getLanguageParticipants, LanguageParticipants } from './languageParticipants.js';
+import { LanguageParticipants } from './languageParticipants.js';
 import { matchesUrlPattern } from './utils/urlMatch.js';
 
 namespace VSCodeContentRequest {
@@ -182,7 +182,7 @@ export interface AsyncDisposable {
 }
 
 export async function startClient(context: ExtensionContext, newLanguageClient: LanguageClientConstructor, runtime: Runtime): Promise<AsyncDisposable> {
-	const languageParticipants = getLanguageParticipants();
+	const languageParticipants = new LanguageParticipants();
 	context.subscriptions.push(languageParticipants);
 
 	let client: Disposable | undefined = await startClientWithParticipants(context, languageParticipants, newLanguageClient, runtime);

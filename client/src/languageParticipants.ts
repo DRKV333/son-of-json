@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Event, EventEmitter, extensions } from 'vscode';
+import { Event, EventEmitter, extensions, Disposable } from 'vscode';
 
 /**
  * JSON language participant contribution.
@@ -20,29 +20,50 @@ interface LanguageParticipantContribution {
 	comments?: boolean;
 }
 
-export interface LanguageParticipants {
-	readonly onDidChange: Event<void>;
-	readonly documentSelector: string[];
-	hasLanguage(languageId: string): boolean;
-	useComments(languageId: string): boolean;
-	dispose(): void;
-}
+export class LanguageParticipants implements Disposable {
 
-export function getLanguageParticipants(): LanguageParticipants {
-	const onDidChangeEmmiter = new EventEmitter<void>();
-	let languages = new Set<string>();
-	let comments = new Set<string>();
+	public readonly onDidChange: Event<void>;
+	private readonly changeListener: Disposable;
+	private readonly onDidChangeEmitter: EventEmitter<void>;
+	private readonly languages = new Set<string>();
+	private readonly comments = new Set<string>();
 
-	function update() {
-		const oldLanguages = languages, oldComments = comments;
+	constructor() {
+		this.onDidChangeEmitter = new EventEmitter<void>();
+		this.onDidChange = this.onDidChangeEmitter.event;
 
-		languages = new Set();
-		languages.add('json');
-		languages.add('jsonc');
-		languages.add('snippets');
-		comments = new Set();
-		comments.add('jsonc');
-		comments.add('snippets');
+		this.update();
+
+		this.changeListener = extensions.onDidChange(() => {
+			if (this.update()) {
+				this.onDidChangeEmitter.fire();
+			}
+		});
+	}
+
+	public get documentSelector(): string[] {
+		return Array.from(this.languages);
+	}
+
+	public hasLanguage(languageId: string): boolean {
+		return this.languages.has(languageId);
+	}
+
+	public useComments(languageId: string): boolean {
+		return this.comments.has(languageId);
+	}
+
+	private update(): boolean {
+		const oldLanguages = this.languages, oldComments = this.comments;
+
+		this.languages.clear();
+		this.languages.add('json');
+		this.languages.add('jsonc');
+		this.languages.add('snippets');
+
+		this.comments.clear();
+		this.comments.add('jsonc');
+		this.comments.add('snippets');
 
 		for (const extension of extensions.all) {
 			const jsonLanguageParticipants = extension.packageJSON?.contributes?.jsonLanguageParticipants as LanguageParticipantContribution[];
@@ -50,41 +71,30 @@ export function getLanguageParticipants(): LanguageParticipants {
 				for (const jsonLanguageParticipant of jsonLanguageParticipants) {
 					const languageId = jsonLanguageParticipant.languageId;
 					if (typeof languageId === 'string') {
-						languages.add(languageId);
+						this.languages.add(languageId);
 						if (jsonLanguageParticipant.comments === true) {
-							comments.add(languageId);
+							this.comments.add(languageId);
 						}
 					}
 				}
 			}
 		}
-		return !isEqualSet(languages, oldLanguages) || !isEqualSet(comments, oldComments);
+		return !LanguageParticipants.isEqualSet(this.languages, oldLanguages) || !LanguageParticipants.isEqualSet(this.comments, oldComments);
 	}
-	update();
 
-	const changeListener = extensions.onDidChange(_ => {
-		if (update()) {
-			onDidChangeEmmiter.fire();
-		}
-	});
-
-	return {
-		onDidChange: onDidChangeEmmiter.event,
-		get documentSelector() { return Array.from(languages); },
-		hasLanguage(languageId: string) { return languages.has(languageId); },
-		useComments(languageId: string) { return comments.has(languageId); },
-		dispose: () => changeListener.dispose()
-	};
-}
-
-function isEqualSet<T>(s1: Set<T>, s2: Set<T>) {
-	if (s1.size !== s2.size) {
-		return false;
+	public dispose(): void {
+		this.changeListener.dispose();
 	}
-	for (const e of s1) {
-		if (!s2.has(e)) {
+
+	private static isEqualSet<T>(s1: Set<T>, s2: Set<T>) {
+		if (s1.size !== s2.size) {
 			return false;
 		}
+		for (const e of s1) {
+			if (!s2.has(e)) {
+				return false;
+			}
+		}
+		return true;
 	}
-	return true;
 }

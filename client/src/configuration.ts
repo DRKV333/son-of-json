@@ -41,6 +41,7 @@ export interface Settings {
 		jsoncFoldingLimit: number;
 		jsonColorDecoratorLimit: number;
 		jsoncColorDecoratorLimit: number;
+		schemaDownloadEnabled: boolean;
 	};
 	http: {
 		proxy?: string;
@@ -69,7 +70,8 @@ export class ConfigurationManager {
 					jsonFoldingLimit: settings.json.jsonFoldingLimit + 1,
 					jsoncFoldingLimit: settings.json.jsoncFoldingLimit + 1,
 					jsonColorDecoratorLimit: settings.json.jsonColorDecoratorLimit + 1,
-					jsoncColorDecoratorLimit: settings.json.jsoncColorDecoratorLimit + 1
+					jsoncColorDecoratorLimit: settings.json.jsoncColorDecoratorLimit + 1,
+					schemaDownloadEnabled: settings.json.schemaDownloadEnabled
 				}
 			}
 		}
@@ -99,6 +101,8 @@ export class ConfigurationManager {
 		const jsonColorDecoratorLimit = normalizeLimit(editorJSONSettings.get(SettingIds.colorDecoratorsLimit));
 		const jsoncColorDecoratorLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.colorDecoratorsLimit));
 
+		const schemaDownloadEnabled = !!configuration.get(SettingIds.enableSchemaDownload);
+
 		const settings: Settings = {
 			http: {
 				proxy: httpSettings.get('proxy'),
@@ -113,7 +117,8 @@ export class ConfigurationManager {
 				jsonFoldingLimit: jsonFoldingLimit,
 				jsoncFoldingLimit: jsoncFoldingLimit,
 				jsonColorDecoratorLimit: jsonColorDecoratorLimit,
-				jsoncColorDecoratorLimit: jsoncColorDecoratorLimit
+				jsoncColorDecoratorLimit: jsoncColorDecoratorLimit,
+				schemaDownloadEnabled: schemaDownloadEnabled
 			}
 		};
 

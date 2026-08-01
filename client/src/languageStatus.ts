@@ -8,8 +8,8 @@ import {
 	extensions, workspace, Extension, QuickPickItemKind,
 	ThemeIcon, TextDocument, LanguageStatusSeverity, l10n, DocumentSelector, Diagnostic
 } from 'vscode';
-import { CommandIds, isSchemaResolveError } from './jsonClient.js';
-import { ErrorCodes, JSONLanguageStatus } from './messageTypes.js';
+import { CommandIds } from './jsonClient.js';
+import { ErrorCodes, isSchemaResolveError, JSONLanguageStatus } from './messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
 
 type ShowSchemasInput = {

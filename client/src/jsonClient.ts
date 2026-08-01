@@ -4,23 +4,23 @@
  *--------------------------------------------------------------------------------------------*/
 
 import {
-	workspace, window, languages, commands, LogOutputChannel, ExtensionContext, extensions, Uri, ColorInformation,
-	Diagnostic, StatusBarAlignment, TextDocument, FormattingOptions, CancellationToken, FoldingRange,
-	ProviderResult, TextEdit, Range, Position, Disposable, CompletionItem, CompletionList, CompletionContext, Hover, MarkdownString, FoldingContext, DocumentSymbol, SymbolInformation, l10n,
+	workspace, window, languages, commands, LogOutputChannel, ExtensionContext, extensions, Uri, 
+	Diagnostic, StatusBarAlignment, TextDocument, FormattingOptions, CancellationToken, 
+	ProviderResult, TextEdit, Range, Disposable, l10n,
 	RelativePattern, CodeAction, CodeActionKind, CodeActionContext
 } from 'vscode';
 import {
-	LanguageClientOptions, DocumentDiagnosticReportKind,
+	LanguageClientOptions, 
 	Diagnostic as LSPDiagnostic,
-	DidChangeConfigurationNotification, HandleDiagnosticsSignature, ResponseError, DocumentRangeFormattingParams,
-	DocumentRangeFormattingRequest, ProvideCompletionItemsSignature, ProvideHoverSignature, BaseLanguageClient, ProvideFoldingRangeSignature, ProvideDocumentSymbolsSignature, ProvideDocumentColorsSignature
-} from 'vscode-languageclient';
+	DidChangeConfigurationNotification, ResponseError, DocumentRangeFormattingParams,
+	DocumentRangeFormattingRequest, BaseLanguageClient} from 'vscode-languageclient';
 
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
 import { matchesUrlPattern } from './utils/urlMatch.js';
 import { DocumentSortingParams, DocumentSortingRequest, ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, SchemaRequestServiceErrors, SortOptions, ValidateContentRequest, VSCodeContentRequest } from './messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
+import { JsonClientMiddleware } from './middleware.js';
 
 export namespace CommandIds {
 	export const workbenchActionOpenSettings = 'workbench.action.openSettings';
@@ -145,14 +145,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		}
 	}));
 
-	function handleSchemaErrorDiagnostics(uri: Uri, diagnostics: Diagnostic[]): Diagnostic[] {
-		schemaLoadStatusItem.update(uri, diagnostics);
-		if (!schemaDownloadEnabled) {
-			return diagnostics.filter(d => !isSchemaResolveError(d));
-		}
-		return diagnostics;
-	}
-
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for json documents
@@ -164,101 +156,9 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		},
 		synchronize: {
 			// Synchronize the setting section 'json' to the server
-			configurationSection: ['jsonson', 'http'],
 			fileEvents: workspace.createFileSystemWatcher('**/*.json')
 		},
-		middleware: {
-			workspace: {
-				didChangeConfiguration: () => client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) })
-			},
-			provideDiagnostics: async (uriOrDoc, previousResolutId, token, next) => {
-				const diagnostics = await next(uriOrDoc, previousResolutId, token);
-				if (diagnostics && diagnostics.kind === DocumentDiagnosticReportKind.Full) {
-					const uri = uriOrDoc instanceof Uri ? uriOrDoc : uriOrDoc.uri;
-					diagnostics.items = handleSchemaErrorDiagnostics(uri, diagnostics.items);
-				}
-				return diagnostics;
-			},
-			handleDiagnostics: (uri: Uri, diagnostics: Diagnostic[], next: HandleDiagnosticsSignature) => {
-				diagnostics = handleSchemaErrorDiagnostics(uri, diagnostics);
-				next(uri, diagnostics);
-			},
-			// testing the replace / insert mode
-			provideCompletionItem(document: TextDocument, position: Position, context: CompletionContext, token: CancellationToken, next: ProvideCompletionItemsSignature): ProviderResult<CompletionItem[] | CompletionList> {
-				function update(item: CompletionItem) {
-					const range = item.range;
-					if (range instanceof Range && range.end.isAfter(position) && range.start.isBeforeOrEqual(position)) {
-						item.range = { inserting: new Range(range.start, position), replacing: range };
-					}
-					if (item.documentation instanceof MarkdownString) {
-						item.documentation = updateMarkdownString(item.documentation);
-					}
-
-				}
-				function updateProposals(r: CompletionItem[] | CompletionList | null | undefined): CompletionItem[] | CompletionList | null | undefined {
-					if (r) {
-						(Array.isArray(r) ? r : r.items).forEach(update);
-					}
-					return r;
-				}
-
-				const r = next(document, position, context, token);
-				if (isThenable<CompletionItem[] | CompletionList | null | undefined>(r)) {
-					return r.then(updateProposals);
-				}
-				return updateProposals(r);
-			},
-			provideHover(document: TextDocument, position: Position, token: CancellationToken, next: ProvideHoverSignature) {
-				function updateHover(r: Hover | null | undefined): Hover | null | undefined {
-					if (r && Array.isArray(r.contents)) {
-						r.contents = r.contents.map(h => h instanceof MarkdownString ? updateMarkdownString(h) : h);
-					}
-					return r;
-				}
-				const r = next(document, position, token);
-				if (isThenable<Hover | null | undefined>(r)) {
-					return r.then(updateHover);
-				}
-				return updateHover(r);
-			},
-			provideFoldingRanges(document: TextDocument, context: FoldingContext, token: CancellationToken, next: ProvideFoldingRangeSignature) {
-				const r = next(document, context, token);
-				if (isThenable<FoldingRange[] | null | undefined>(r)) {
-					return r;
-				}
-				return r;
-			},
-			provideDocumentColors(document: TextDocument, token: CancellationToken, next: ProvideDocumentColorsSignature) {
-				const r = next(document, token);
-				if (isThenable<ColorInformation[] | null | undefined>(r)) {
-					return r;
-				}
-				return r;
-			},
-			provideDocumentSymbols(document: TextDocument, token: CancellationToken, next: ProvideDocumentSymbolsSignature) {
-				type T = SymbolInformation[] | DocumentSymbol[];
-				function countDocumentSymbols(symbols: DocumentSymbol[]): number {
-					return symbols.reduce((previousValue, s) => previousValue + 1 + countDocumentSymbols(s.children), 0);
-				}
-				function isDocumentSymbol(r: T): r is DocumentSymbol[] {
-					return r[0] instanceof DocumentSymbol;
-				}
-				function checkLimit(r: T | null | undefined): T | null | undefined {
-					const resultLimit = configurationManager.getSettings(false).json.resultLimit;
-					if (Array.isArray(r) && (isDocumentSymbol(r) ? countDocumentSymbols(r) : r.length) > resultLimit) {
-						documentSymbolsLimitStatusbarItem.update(document, resultLimit);
-					} else {
-						documentSymbolsLimitStatusbarItem.update(document, false);
-					}
-					return r;
-				}
-				const r = next(document, token);
-				if (isThenable<T | undefined | null>(r)) {
-					return r.then(checkLimit);
-				}
-				return checkLimit(r);
-			}
-		}
+		middleware: new JsonClientMiddleware(configurationManager, schemaLoadStatusItem, documentSymbolsLimitStatusbarItem)
 	};
 
 	clientOptions.outputChannel = runtime.logOutputChannel;
@@ -431,13 +331,15 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		} else if (e.affectsConfiguration(SettingIds.enableSchemaDownload)) {
 			schemaDownloadEnabled = !!workspace.getConfiguration().get(SettingIds.enableSchemaDownload);
 			triggerValidation();
-		} else if (e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) || e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit)) {
+		} else if (e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) || e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit) || e.affectsConfiguration("http") || e.affectsConfiguration("jsonson")) {
 			client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) });
 		} else if (e.affectsConfiguration(SettingIds.trustedDomains)) {
 			trustedDomains = workspace.getConfiguration().get<Record<string, boolean>>(SettingIds.trustedDomains, {});
 			triggerValidation();
 		}
 	}));
+	client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) });
+
 	toDispose.push(workspace.onDidGrantWorkspaceTrust(() => triggerValidation()));
 
 	toDispose.push(createLanguageStatusItem(documentSelector, (uri: string) => client.sendRequest(LanguageStatusRequest.type, uri)));
@@ -680,18 +582,4 @@ async function getDynamicSchemaAssociations(): Promise<ISchemaAssociation[]> {
 		// ignore
 	}
 	return result;
-}
-
-function isThenable<T>(obj: unknown): obj is Thenable<T> {
-	return !!obj && typeof (obj as unknown as Thenable<T>).then === 'function';
-}
-
-function updateMarkdownString(h: MarkdownString): MarkdownString {
-	const n = new MarkdownString(h.value, true);
-	n.isTrusted = h.isTrusted;
-	return n;
-}
-
-export function isSchemaResolveError(d: Diagnostic) {
-	return typeof d.code === 'number' && d.code >= ErrorCodes.SchemaResolveError;
 }

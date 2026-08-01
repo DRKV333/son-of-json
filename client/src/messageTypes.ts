@@ -84,3 +84,7 @@ export namespace ErrorCodes {
 	export const UntrustedSchemaError = SchemaResolveError + SchemaRequestServiceErrors.UntrustedSchemaError;
 	export const HTTPDisabledError = SchemaResolveError + SchemaRequestServiceErrors.HTTPDisabledError;
 }
+
+export function isSchemaResolveError(diagnostic: { code?: any }) {
+	return typeof diagnostic.code === 'number' && diagnostic.code >= ErrorCodes.SchemaResolveError;
+}

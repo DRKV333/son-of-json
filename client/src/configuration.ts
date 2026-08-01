@@ -7,18 +7,26 @@ import { Uri, workspace } from "vscode";
 import { hash } from "./utils/hash.js";
 
 export namespace SettingIds {
-	export const enableFormatter = 'jsonson.format.enable';
-	export const enableKeepLines = 'jsonson.format.keepLines';
-	export const enableValidation = 'jsonson.validate.enable';
-	export const enableSchemaDownload = 'jsonson.schemaDownload.enable';
-	export const trustedDomains = 'jsonson.schemaDownload.trustedDomains';
-	export const maxItemsComputed = 'jsonson.maxItemsComputed';
-	export const editorFoldingMaximumRegions = 'editor.foldingMaximumRegions';
-	export const editorColorDecoratorsLimit = 'editor.colorDecoratorsLimit';
+	export const jsonsonSection = 'jsonson';
+	export const jsonsonSectionSchemasKey = 'schemas';
 
+	export const httpSection = 'http';
+	export const httpSectionProxyKey = 'proxy';
+	export const httpSectionProxyStrictSSLKey = 'proxyStrictSSL';
+
+	export const enableFormatter = `${jsonsonSection}.format.enable`;
+	export const enableKeepLines = `${jsonsonSection}.format.keepLines`;
+	export const enableValidation = `${jsonsonSection}.validate.enable`;
+	export const enableSchemaDownload = `${jsonsonSection}.schemaDownload.enable`;
+	export const trustedDomains = `${jsonsonSection}.schemaDownload.trustedDomains`;
+	export const maxItemsComputed = `${jsonsonSection}.maxItemsComputed`;
+	
 	export const editorSection = 'editor';
-	export const foldingMaximumRegions = 'foldingMaximumRegions';
-	export const colorDecoratorsLimit = 'colorDecoratorsLimit';
+	export const editorSectionFoldingMaximumRegionsKey = 'foldingMaximumRegions';
+	export const editorSectionColorDecoratorsLimitKey = 'colorDecoratorsLimit';
+
+	export const editorFoldingMaximumRegions = `${editorSection}.${editorSectionFoldingMaximumRegionsKey}`;
+	export const editorColorDecoratorsLimit = `${editorSection}.${editorSectionColorDecoratorsLimitKey}`;
 }
 
 export interface JSONSchemaSettings {
@@ -88,7 +96,7 @@ export class ConfigurationManager {
 
 	private computeSettings(): Settings {
 		const configuration = workspace.getConfiguration();
-		const httpSettings = workspace.getConfiguration('http');
+		const httpSettings = workspace.getConfiguration(SettingIds.httpSection);
 
 		const normalizeLimit = (settingValue: any) => Math.trunc(Math.max(0, Number(settingValue))) || 5000;
 
@@ -96,17 +104,17 @@ export class ConfigurationManager {
 		const editorJSONSettings = workspace.getConfiguration(SettingIds.editorSection, { languageId: 'json' });
 		const editorJSONCSettings = workspace.getConfiguration(SettingIds.editorSection, { languageId: 'jsonc' });
 
-		const jsonFoldingLimit = normalizeLimit(editorJSONSettings.get(SettingIds.foldingMaximumRegions));
-		const jsoncFoldingLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.foldingMaximumRegions));
-		const jsonColorDecoratorLimit = normalizeLimit(editorJSONSettings.get(SettingIds.colorDecoratorsLimit));
-		const jsoncColorDecoratorLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.colorDecoratorsLimit));
+		const jsonFoldingLimit = normalizeLimit(editorJSONSettings.get(SettingIds.editorSectionFoldingMaximumRegionsKey));
+		const jsoncFoldingLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.editorSectionFoldingMaximumRegionsKey));
+		const jsonColorDecoratorLimit = normalizeLimit(editorJSONSettings.get(SettingIds.editorSectionColorDecoratorsLimitKey));
+		const jsoncColorDecoratorLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.editorSectionColorDecoratorsLimitKey));
 
 		const schemaDownloadEnabled = !!configuration.get(SettingIds.enableSchemaDownload);
 
 		const settings: Settings = {
 			http: {
-				proxy: httpSettings.get('proxy'),
-				proxyStrictSSL: httpSettings.get('proxyStrictSSL')
+				proxy: httpSettings.get(SettingIds.httpSectionProxyKey),
+				proxyStrictSSL: httpSettings.get(SettingIds.httpSectionProxyStrictSSLKey)
 			},
 			json: {
 				validate: { enable: configuration.get(SettingIds.enableValidation) },
@@ -158,7 +166,7 @@ export class ConfigurationManager {
 			}
 		}
 
-		const schemaConfigInfo = workspace.getConfiguration('jsonson', null).inspect<JSONSchemaSettings[]>('schemas');
+		const schemaConfigInfo = workspace.getConfiguration(SettingIds.jsonsonSection, null).inspect<JSONSchemaSettings[]>(SettingIds.jsonsonSectionSchemasKey);
 		if (schemaConfigInfo) {
 			if (workspace.workspaceFile) {
 				// settings in user config
@@ -172,7 +180,7 @@ export class ConfigurationManager {
 
 				for (const folder of folders) {
 					const folderUri = folder.uri;
-					const folderSchemaConfigInfo = workspace.getConfiguration('jsonson', folderUri).inspect<JSONSchemaSettings[]>('schemas');
+					const folderSchemaConfigInfo = workspace.getConfiguration(SettingIds.jsonsonSection, folderUri).inspect<JSONSchemaSettings[]>(SettingIds.jsonsonSectionSchemasKey);
 					collectSchemaSettings(folderSchemaConfigInfo?.workspaceFolderValue, folderUri.toString(false), folderUri);
 				}
 			} else {

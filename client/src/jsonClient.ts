@@ -16,54 +16,11 @@ import {
 	DocumentRangeFormattingRequest, ProvideCompletionItemsSignature, ProvideHoverSignature, BaseLanguageClient, ProvideFoldingRangeSignature, ProvideDocumentSymbolsSignature, ProvideDocumentColorsSignature
 } from 'vscode-languageclient';
 
-
-import { hash } from './utils/hash.js';
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
 import { matchesUrlPattern } from './utils/urlMatch.js';
 import { DocumentSortingParams, DocumentSortingRequest, ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, SchemaRequestServiceErrors, SortOptions, ValidateContentRequest, VSCodeContentRequest } from './messageTypes.js';
-
-type Settings = {
-	json?: {
-		schemas?: JSONSchemaSettings[];
-		format?: { enable?: boolean };
-		keepLines?: { enable?: boolean };
-		validate?: { enable?: boolean };
-		resultLimit?: number;
-		jsonFoldingLimit?: number;
-		jsoncFoldingLimit?: number;
-		jsonColorDecoratorLimit?: number;
-		jsoncColorDecoratorLimit?: number;
-	};
-	http?: {
-		proxy?: string;
-		proxyStrictSSL?: boolean;
-	};
-};
-
-export type JSONSchemaSettings = {
-	uri?: string;
-	schemaFile?: string;
-	retrievalUri?: string;
-	fileMatch?: string[];
-	schema?: any;
-	folderUri?: string;
-};
-
-export namespace SettingIds {
-	export const enableFormatter = 'jsonson.format.enable';
-	export const enableKeepLines = 'jsonson.format.keepLines';
-	export const enableValidation = 'jsonson.validate.enable';
-	export const enableSchemaDownload = 'jsonson.schemaDownload.enable';
-	export const trustedDomains = 'jsonson.schemaDownload.trustedDomains';
-	export const maxItemsComputed = 'jsonson.maxItemsComputed';
-	export const editorFoldingMaximumRegions = 'editor.foldingMaximumRegions';
-	export const editorColorDecoratorsLimit = 'editor.colorDecoratorsLimit';
-
-	export const editorSection = 'editor';
-	export const foldingMaximumRegions = 'foldingMaximumRegions';
-	export const colorDecoratorsLimit = 'colorDecoratorsLimit';
-}
+import { ConfigurationManager, SettingIds } from './configuration.js';
 
 export namespace CommandIds {
 	export const workbenchActionOpenSettings = 'workbench.action.openSettings';
@@ -101,12 +58,6 @@ export interface SchemaRequestService {
 }
 
 export const languageServerDescription = l10n.t('JSON Language Server');
-
-let resultLimit = 5000;
-let jsonFoldingLimit = 5000;
-let jsoncFoldingLimit = 5000;
-let jsonColorDecoratorLimit = 5000;
-let jsoncColorDecoratorLimit = 5000;
 
 export interface AsyncDisposable {
 	dispose(): Promise<void>;
@@ -147,8 +98,9 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 
 	const toDispose: Disposable[] = [];
 
+	const configurationManager = new ConfigurationManager();
+
 	let rangeFormatting: Disposable | undefined = undefined;
-	let settingsCache: Settings | undefined = undefined;
 	let schemaAssociationsCache: Promise<ISchemaAssociation[]> | undefined = undefined;
 
 	const documentSelector = languageParticipants.documentSelector;
@@ -226,7 +178,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		},
 		middleware: {
 			workspace: {
-				didChangeConfiguration: () => client.sendNotification(DidChangeConfigurationNotification.type, { settings: getSettings(true) })
+				didChangeConfiguration: () => client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) })
 			},
 			provideDiagnostics: async (uriOrDoc, previousResolutId, token, next) => {
 				const diagnostics = await next(uriOrDoc, previousResolutId, token);
@@ -301,6 +253,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 					return r[0] instanceof DocumentSymbol;
 				}
 				function checkLimit(r: T | null | undefined): T | null | undefined {
+					const resultLimit = configurationManager.getSettings(false).json.resultLimit;
 					if (Array.isArray(r) && (isDocumentSymbol(r) ? countDocumentSymbols(r) : r.length) > resultLimit) {
 						documentSymbolsLimitStatusbarItem.update(document, resultLimit);
 					} else {
@@ -498,7 +451,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 			schemaDownloadEnabled = !!workspace.getConfiguration().get(SettingIds.enableSchemaDownload);
 			triggerValidation();
 		} else if (e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) || e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit)) {
-			client.sendNotification(DidChangeConfigurationNotification.type, { settings: getSettings(true) });
+			client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) });
 		} else if (e.affectsConfiguration(SettingIds.trustedDomains)) {
 			trustedDomains = workspace.getConfiguration().get<Record<string, boolean>>(SettingIds.trustedDomains, {});
 			triggerValidation();
@@ -573,13 +526,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		});
 	}
 
-	function getSettings(forceRefresh: boolean): Settings {
-		if (!settingsCache || forceRefresh) {
-			settingsCache = computeSettings();
-		}
-		return settingsCache;
-	}
-
 	async function getSchemaAssociations(forceRefresh: boolean): Promise<ISchemaAssociation[]> {
 		if (!schemaAssociationsCache || forceRefresh) {
 			schemaAssociationsCache = computeSchemaAssociations();
@@ -604,14 +550,13 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 				return true;
 			}
 		}
-		const settingsCache = getSettings(false);
-		if (settingsCache.json && settingsCache.json.schemas) {
-			for (const schemaSetting of settingsCache.json.schemas) {
-				if (schemaSetting.retrievalUri === uriString) {
-					return true;
-				}
+		const settings = configurationManager.getSettings(false);
+		for (const schemaSetting of settings.json.schemas) {
+			if (schemaSetting.retrievalUri === uriString) {
+				return true;
 			}
 		}
+
 		return false;
 	}
 
@@ -754,127 +699,6 @@ async function getDynamicSchemaAssociations(): Promise<ISchemaAssociation[]> {
 		// ignore
 	}
 	return result;
-}
-
-export function computeSchemas(scope: Uri | null): JSONSchemaSettings[] {
-	const schemas: JSONSchemaSettings[] = [];
-
-	/*
-	 * Add schemas from the settings
-	 * folderUri to which folder the setting is scoped to. `undefined` means global (also external files)
-	 * settingsLocation against which path relative schema URLs are resolved
-	 */
-	const collectSchemaSettings = (schemaSettings: JSONSchemaSettings[] | undefined, folderUri: string | undefined, settingsLocation: Uri | undefined) => {
-		if (schemaSettings) {
-			for (const setting of schemaSettings) {
-				const uri = getSchemaId(setting);
-				if (uri) {
-					if (settingsLocation && setting.schemaFile) {
-						setting.retrievalUri = Uri.joinPath(settingsLocation, setting.schemaFile).toString();
-					}
-
-					const schemaSetting: JSONSchemaSettings = { uri, retrievalUri: setting.retrievalUri, fileMatch: setting.fileMatch, folderUri, schema: setting.schema };
-					schemas.push(schemaSetting);
-				}
-			}
-		}
-	};
-
-	let folders = workspace.workspaceFolders ?? [];
-	if (scope) {
-		const scopeFolder = workspace.getWorkspaceFolder(scope);
-		if (scopeFolder) {
-			folders = [ scopeFolder ];
-		}
-	}
-
-	const schemaConfigInfo = workspace.getConfiguration('jsonson', null).inspect<JSONSchemaSettings[]>('schemas');
-	if (schemaConfigInfo) {
-		if (workspace.workspaceFile) {
-			// settings in user config
-			collectSchemaSettings(schemaConfigInfo.globalValue, undefined, undefined);
-
-			if (schemaConfigInfo.workspaceValue) {
-				const settingsLocation = Uri.joinPath(workspace.workspaceFile, '..');
-				// settings in the workspace configuration file apply to all files (also external files)
-				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, settingsLocation);
-			}
-
-			for (const folder of folders) {
-				const folderUri = folder.uri;
-				const folderSchemaConfigInfo = workspace.getConfiguration('jsonson', folderUri).inspect<JSONSchemaSettings[]>('schemas');
-				collectSchemaSettings(folderSchemaConfigInfo?.workspaceFolderValue, folderUri.toString(false), folderUri);
-			}
-		} else {
-			let locationUri: Uri | undefined = undefined;
-
-			if (folders.length === 1) {
-				locationUri = folders[0].uri;
-			}
-
-			// settings in user config
-			collectSchemaSettings(schemaConfigInfo.globalValue, undefined, locationUri);
-
-			if (schemaConfigInfo.workspaceValue) {
-				// single folder workspace: settings apply to all files (also external files)
-				collectSchemaSettings(schemaConfigInfo.workspaceValue, undefined, locationUri);
-			}
-		}
-	}
-
-	return schemas;
-}
-
-function computeSettings(): Settings {
-	const configuration = workspace.getConfiguration();
-	const httpSettings = workspace.getConfiguration('http');
-
-	const normalizeLimit = (settingValue: any) => Math.trunc(Math.max(0, Number(settingValue))) || 5000;
-
-	resultLimit = normalizeLimit(workspace.getConfiguration().get(SettingIds.maxItemsComputed));
-	const editorJSONSettings = workspace.getConfiguration(SettingIds.editorSection, { languageId: 'json' });
-	const editorJSONCSettings = workspace.getConfiguration(SettingIds.editorSection, { languageId: 'jsonc' });
-
-	jsonFoldingLimit = normalizeLimit(editorJSONSettings.get(SettingIds.foldingMaximumRegions));
-	jsoncFoldingLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.foldingMaximumRegions));
-	jsonColorDecoratorLimit = normalizeLimit(editorJSONSettings.get(SettingIds.colorDecoratorsLimit));
-	jsoncColorDecoratorLimit = normalizeLimit(editorJSONCSettings.get(SettingIds.colorDecoratorsLimit));
-
-	const settings: Settings = {
-		http: {
-			proxy: httpSettings.get('proxy'),
-			proxyStrictSSL: httpSettings.get('proxyStrictSSL')
-		},
-		json: {
-			validate: { enable: configuration.get(SettingIds.enableValidation) },
-			format: { enable: configuration.get(SettingIds.enableFormatter) },
-			keepLines: { enable: configuration.get(SettingIds.enableKeepLines) },
-			schemas: computeSchemas(null),
-			resultLimit: resultLimit + 1, // ask for one more so we can detect if the limit has been exceeded
-			jsonFoldingLimit: jsonFoldingLimit + 1,
-			jsoncFoldingLimit: jsoncFoldingLimit + 1,
-			jsonColorDecoratorLimit: jsonColorDecoratorLimit + 1,
-			jsoncColorDecoratorLimit: jsoncColorDecoratorLimit + 1
-		}
-	};
-
-	return settings;
-}
-
-function getSchemaId(schema: JSONSchemaSettings): string | undefined {
-	if (schema.uri) {
-		return schema.uri;
-	}
-
-	if (schema.retrievalUri) {
-		return schema.retrievalUri;
-	}
-
-	if (schema.schema) {
-		return schema.schema.id || `vscode://schemas/custom/${encodeURIComponent(hash(schema.schema).toString(16))}`;
-	}
-
-	return undefined;
 }
 
 function isThenable<T>(obj: unknown): obj is Thenable<T> {

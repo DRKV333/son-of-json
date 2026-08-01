@@ -8,8 +8,9 @@ import {
 	extensions, workspace, Extension, QuickPickItemKind,
 	ThemeIcon, TextDocument, LanguageStatusSeverity, l10n, DocumentSelector, Diagnostic
 } from 'vscode';
-import { CommandIds, computeSchemas, isSchemaResolveError, SettingIds } from './jsonClient.js';
+import { CommandIds, isSchemaResolveError } from './jsonClient.js';
 import { ErrorCodes, JSONLanguageStatus } from './messageTypes.js';
+import { ConfigurationManager, SettingIds } from './configuration.js';
 
 type ShowSchemasInput = {
 	schemas: string[];
@@ -59,7 +60,7 @@ function getExtensionSchemaAssociations() {
 //
 
 function getSettingsSchemaAssociations(uri: string) {
-	const schemas = computeSchemas(Uri.parse(uri));
+	const schemas = new ConfigurationManager().computeSchemas(Uri.parse(uri)); // TODO: The retrieval URI should just come from the server.
 
 	return {
 		findSetting(uri: string): ShowSchemasItem | undefined {

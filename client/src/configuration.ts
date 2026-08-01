@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Uri, workspace } from "vscode";
+import { Uri, workspace, Disposable, ConfigurationChangeEvent, Event, EventEmitter } from "vscode";
 import { hash } from "./utils/hash.js";
 
 export namespace SettingIds {
@@ -50,6 +50,7 @@ export interface Settings {
 		jsonColorDecoratorLimit: number;
 		jsoncColorDecoratorLimit: number;
 		schemaDownloadEnabled: boolean;
+		trustedDomains: Record<string, boolean>;
 	};
 	http: {
 		proxy?: string;
@@ -57,13 +58,50 @@ export interface Settings {
 	};
 };
 
-export class ConfigurationManager {
+export class ConfigurationManager implements Disposable {
 	private settingsCache: Settings | undefined = undefined;
 	private settingsCacheWithExtraLimits: Settings | undefined = undefined;
+	private readonly didChangeSubscription: Disposable;
 
-	public getSettingsWithExtraLimits(forceRefresh: boolean): Settings {
-		if (!this.settingsCacheWithExtraLimits || forceRefresh) {
-			const settings = this.getSettings(forceRefresh);
+	private didChangeFormatterSettingsEmitter: EventEmitter<ConfigurationChangeEvent> = new EventEmitter<ConfigurationChangeEvent>();
+	public onDidChangeFormatterSettings: Event<ConfigurationChangeEvent> = this.didChangeFormatterSettingsEmitter.event;
+
+	private didChangeDownloadSettingsEmitter: EventEmitter<ConfigurationChangeEvent> = new EventEmitter<ConfigurationChangeEvent>();
+	public onDidChangeDownloadSettings: Event<ConfigurationChangeEvent> = this.didChangeDownloadSettingsEmitter.event;
+
+	private didChangeAnySettingsEmitter: EventEmitter<ConfigurationChangeEvent> = new EventEmitter<ConfigurationChangeEvent>();
+	public onDidChangeAnySettings: Event<ConfigurationChangeEvent> = this.didChangeAnySettingsEmitter.event;
+
+	constructor() {
+		this.didChangeSubscription = workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration(SettingIds.enableFormatter)) {
+				this.didChangeFormatterSettingsEmitter.fire(e);
+			}
+
+			if (e.affectsConfiguration(SettingIds.enableSchemaDownload) || e.affectsConfiguration(SettingIds.trustedDomains)) {
+				this.didChangeDownloadSettingsEmitter.fire(e);
+			}
+
+			if (
+				e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) ||
+				e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit) ||
+				e.affectsConfiguration(SettingIds.httpSection) ||
+				e.affectsConfiguration(SettingIds.jsonsonSection)
+			) {
+				this.settingsCache = undefined;
+				this.settingsCacheWithExtraLimits = undefined;
+				this.didChangeAnySettingsEmitter.fire(e);
+			}
+		});
+	}
+
+	public dispose() {
+		this.didChangeSubscription.dispose();
+	}
+
+	public getSettingsWithExtraLimits(): Settings {
+		if (!this.settingsCacheWithExtraLimits) {
+			const settings = this.getSettings();
 
 			// ask for one more so we can detect if the limit has been exceeded
 
@@ -79,7 +117,8 @@ export class ConfigurationManager {
 					jsoncFoldingLimit: settings.json.jsoncFoldingLimit + 1,
 					jsonColorDecoratorLimit: settings.json.jsonColorDecoratorLimit + 1,
 					jsoncColorDecoratorLimit: settings.json.jsoncColorDecoratorLimit + 1,
-					schemaDownloadEnabled: settings.json.schemaDownloadEnabled
+					schemaDownloadEnabled: settings.json.schemaDownloadEnabled,
+					trustedDomains: settings.json.trustedDomains
 				}
 			}
 		}
@@ -87,8 +126,8 @@ export class ConfigurationManager {
 		return this.settingsCacheWithExtraLimits;
 	}
 
-	public getSettings(forceRefresh: boolean): Settings {
-		if (!this.settingsCache || forceRefresh) {
+	public getSettings(): Settings {
+		if (!this.settingsCache) {
 			this.settingsCache = this.computeSettings();
 		}
 		return this.settingsCache;
@@ -111,6 +150,8 @@ export class ConfigurationManager {
 
 		const schemaDownloadEnabled = !!configuration.get(SettingIds.enableSchemaDownload);
 
+		const trustedDomains = configuration.get<Record<string, boolean>>(SettingIds.trustedDomains, {});
+
 		const settings: Settings = {
 			http: {
 				proxy: httpSettings.get(SettingIds.httpSectionProxyKey),
@@ -126,7 +167,8 @@ export class ConfigurationManager {
 				jsoncFoldingLimit: jsoncFoldingLimit,
 				jsonColorDecoratorLimit: jsonColorDecoratorLimit,
 				jsoncColorDecoratorLimit: jsoncColorDecoratorLimit,
-				schemaDownloadEnabled: schemaDownloadEnabled
+				schemaDownloadEnabled: schemaDownloadEnabled,
+				trustedDomains: trustedDomains
 			}
 		};
 

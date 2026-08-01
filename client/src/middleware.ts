@@ -34,7 +34,7 @@ export class JsonClientMiddleware implements Middleware {
 
     private handleSchemaErrorDiagnostics(uri: Uri, diagnostics: Diagnostic[]): Diagnostic[] {
         this.schemaLoadStatusItem.update(uri, diagnostics);
-        if (!this.config.getSettings(false).json.schemaDownloadEnabled) {
+        if (!this.config.getSettings().json.schemaDownloadEnabled) {
             return diagnostics.filter(d => !isSchemaResolveError(d));
         }
         return diagnostics;
@@ -91,7 +91,7 @@ export class JsonClientMiddleware implements Middleware {
 
         const r = await next(document, token);
 
-        const resultLimit = this.config.getSettings(false).json.resultLimit;
+        const resultLimit = this.config.getSettings().json.resultLimit;
         if (Array.isArray(r) && (isDocumentSymbol(r) ? countDocumentSymbols(r) : r.length) > resultLimit) {
             this.documentSymbolsLimitStatusbarItem.update(document, resultLimit);
         } else {

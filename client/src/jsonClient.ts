@@ -90,6 +90,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	const toDispose: Disposable[] = [];
 
 	const configurationManager = new ConfigurationManager();
+	toDispose.push(configurationManager);
 
 	let rangeFormatting: Disposable | undefined = undefined;
 	let schemaAssociationsCache: Promise<ISchemaAssociation[]> | undefined = undefined;
@@ -102,15 +103,13 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	toDispose.push(schemaResolutionErrorStatusBarItem);
 
 	const fileSchemaErrors = new Map<string, string>();
-	let schemaDownloadEnabled = !!workspace.getConfiguration().get(SettingIds.enableSchemaDownload);
-	let trustedDomains = workspace.getConfiguration().get<Record<string, boolean>>(SettingIds.trustedDomains, {});
 
 	let isClientReady = false;
 
 	const documentSymbolsLimitStatusbarItem = createLimitStatusItem((limit: number) => createDocumentSymbolsLimitItem(documentSelector, SettingIds.maxItemsComputed, limit));
 	toDispose.push(documentSymbolsLimitStatusbarItem);
 
-	const schemaLoadStatusItem = createSchemaLoadStatusItem((diagnostic: Diagnostic) => createSchemaLoadIssueItem(documentSelector, schemaDownloadEnabled, diagnostic));
+	const schemaLoadStatusItem = createSchemaLoadStatusItem((diagnostic: Diagnostic) => createSchemaLoadIssueItem(documentSelector, configurationManager.getSettings().json.schemaDownloadEnabled, diagnostic));
 	toDispose.push(schemaLoadStatusItem);
 
 	toDispose.push(commands.registerCommand(CommandIds.clearCacheCommandId, async () => {
@@ -192,7 +191,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 			} catch (e) {
 				throw new ResponseError(SchemaRequestServiceErrors.OpenTextDocumentAccessError, e.toString(), e);
 			}
-		} else if (schemaDownloadEnabled) {
+		} else if (configurationManager.getSettings().json.schemaDownloadEnabled) {
 			if (!workspace.isTrusted) {
 				throw new ResponseError(SchemaRequestServiceErrors.UntrustedWorkspaceError, l10n.t('Downloading schemas is disabled in untrusted workspaces'));
 			}
@@ -325,20 +324,18 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	updateFormatterRegistration();
 	toDispose.push({ dispose: () => rangeFormatting && rangeFormatting.dispose() });
 
-	toDispose.push(workspace.onDidChangeConfiguration(e => {
-		if (e.affectsConfiguration(SettingIds.enableFormatter)) {
-			updateFormatterRegistration();
-		} else if (e.affectsConfiguration(SettingIds.enableSchemaDownload)) {
-			schemaDownloadEnabled = !!workspace.getConfiguration().get(SettingIds.enableSchemaDownload);
-			triggerValidation();
-		} else if (e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) || e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit) || e.affectsConfiguration("http") || e.affectsConfiguration("jsonson")) {
-			client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) });
-		} else if (e.affectsConfiguration(SettingIds.trustedDomains)) {
-			trustedDomains = workspace.getConfiguration().get<Record<string, boolean>>(SettingIds.trustedDomains, {});
-			triggerValidation();
-		}
+	toDispose.push(configurationManager.onDidChangeFormatterSettings(() => {
+		updateFormatterRegistration();
 	}));
-	client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits(true) });
+
+	toDispose.push(configurationManager.onDidChangeDownloadSettings(() => {
+		triggerValidation();
+	}));
+
+	toDispose.push(configurationManager.onDidChangeAnySettings(() => {
+		client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits() });
+	}));
+	client.sendNotification(DidChangeConfigurationNotification.type, { settings: configurationManager.getSettingsWithExtraLimits() });
 
 	toDispose.push(workspace.onDidGrantWorkspaceTrust(() => triggerValidation()));
 
@@ -423,7 +420,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		const uriString = uri.toString(true);
 
 		// Check against trustedDomains setting
-		if (matchesUrlPattern(uri, trustedDomains)) {
+		if (matchesUrlPattern(uri, configurationManager.getSettings().json.trustedDomains)) {
 			return true;
 		}
 
@@ -433,7 +430,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 				return true;
 			}
 		}
-		const settings = configurationManager.getSettings(false);
+		const settings = configurationManager.getSettings();
 		for (const schemaSetting of settings.json.schemas) {
 			if (schemaSetting.retrievalUri === uriString) {
 				return true;

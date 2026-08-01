@@ -3,8 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-export type JSONLanguageStatus = { schemas: string[] };
-
 import {
 	workspace, window, languages, commands, LogOutputChannel, ExtensionContext, extensions, Uri, ColorInformation,
 	Diagnostic, StatusBarAlignment, TextDocument, FormattingOptions, CancellationToken, FoldingRange,
@@ -12,7 +10,7 @@ import {
 	RelativePattern, CodeAction, CodeActionKind, CodeActionContext
 } from 'vscode';
 import {
-	LanguageClientOptions, RequestType, NotificationType, FormattingOptions as LSPFormattingOptions, DocumentDiagnosticReportKind,
+	LanguageClientOptions, DocumentDiagnosticReportKind,
 	Diagnostic as LSPDiagnostic,
 	DidChangeConfigurationNotification, HandleDiagnosticsSignature, ResponseError, DocumentRangeFormattingParams,
 	DocumentRangeFormattingRequest, ProvideCompletionItemsSignature, ProvideHoverSignature, BaseLanguageClient, ProvideFoldingRangeSignature, ProvideDocumentSymbolsSignature, ProvideDocumentColorsSignature
@@ -23,64 +21,7 @@ import { hash } from './utils/hash.js';
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
 import { matchesUrlPattern } from './utils/urlMatch.js';
-
-namespace VSCodeContentRequest {
-	export const type: RequestType<string, string, any> = new RequestType('vscode/content');
-}
-
-namespace SchemaContentChangeNotification {
-	export const type: NotificationType<string | string[]> = new NotificationType('json/schemaContent');
-}
-
-namespace ForceValidateRequest {
-	export const type: RequestType<string, Diagnostic[], any> = new RequestType('json/validate');
-}
-
-namespace LanguageStatusRequest {
-	export const type: RequestType<string, JSONLanguageStatus, any> = new RequestType('json/languageStatus');
-}
-
-namespace ValidateContentRequest {
-	export const type: RequestType<{ schemaUri: string; content: string }, LSPDiagnostic[], any> = new RequestType('json/validateContent');
-}
-
-interface SortOptions extends LSPFormattingOptions {
-}
-
-interface DocumentSortingParams {
-	/**
-	 * The uri of the document to sort.
-	 */
-	readonly uri: string;
-	/**
-	 * The sort options
-	 */
-	readonly options: SortOptions;
-}
-
-namespace DocumentSortingRequest {
-	export interface ITextEdit {
-		range: {
-			start: { line: number; character: number };
-			end: { line: number; character: number };
-		};
-		newText: string;
-	}
-	export const type: RequestType<DocumentSortingParams, ITextEdit[], any> = new RequestType('json/sort');
-}
-
-export interface ISchemaAssociations {
-	[pattern: string]: string[];
-}
-
-export interface ISchemaAssociation {
-	fileMatch: string[];
-	uri: string;
-}
-
-namespace SchemaAssociationNotification {
-	export const type: NotificationType<ISchemaAssociations | ISchemaAssociation[]> = new NotificationType('json/schemaAssociations');
-}
+import { DocumentSortingParams, DocumentSortingRequest, ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, SchemaRequestServiceErrors, SortOptions, ValidateContentRequest, VSCodeContentRequest } from './messageTypes.js';
 
 type Settings = {
 	json?: {
@@ -157,16 +98,6 @@ export interface Runtime {
 export interface SchemaRequestService {
 	getContent(uri: string): Promise<string>;
 	clearCache?(): Promise<string[]>;
-}
-
-export enum SchemaRequestServiceErrors {
-	UntrustedWorkspaceError = 1,
-	UntrustedSchemaError = 2,
-	OpenTextDocumentAccessError = 3,
-	HTTPDisabledError = 4,
-	HTTPError = 5,
-	VSCodeAccessError = 6,
-	UntitledAccessError = 7,
 }
 
 export const languageServerDescription = l10n.t('JSON Language Server');
@@ -956,13 +887,6 @@ function updateMarkdownString(h: MarkdownString): MarkdownString {
 	return n;
 }
 
-export namespace ErrorCodes {
-	export const SchemaResolveError = 0x10000;
-	export const UntrustedSchemaError = SchemaResolveError + SchemaRequestServiceErrors.UntrustedSchemaError;
-	export const HTTPDisabledError = SchemaResolveError + SchemaRequestServiceErrors.HTTPDisabledError;
-}
-
 export function isSchemaResolveError(d: Diagnostic) {
 	return typeof d.code === 'number' && d.code >= ErrorCodes.SchemaResolveError;
 }
-

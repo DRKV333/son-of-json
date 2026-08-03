@@ -79,22 +79,22 @@ export class LanguageParticipants implements Disposable {
 				}
 			}
 		}
-		return !LanguageParticipants.isEqualSet(this.languages, oldLanguages) || !LanguageParticipants.isEqualSet(this.comments, oldComments);
+		return !isEqualSet(this.languages, oldLanguages) || !isEqualSet(this.comments, oldComments);
 	}
 
 	public dispose(): void {
 		this.changeListener.dispose();
 	}
+}
 
-	private static isEqualSet<T>(s1: Set<T>, s2: Set<T>) {
-		if (s1.size !== s2.size) {
+function isEqualSet<T>(s1: Set<T>, s2: Set<T>) {
+	if (s1.size !== s2.size) {
+		return false;
+	}
+	for (const e of s1) {
+		if (!s2.has(e)) {
 			return false;
 		}
-		for (const e of s1) {
-			if (!s2.has(e)) {
-				return false;
-			}
-		}
-		return true;
 	}
+	return true;
 }

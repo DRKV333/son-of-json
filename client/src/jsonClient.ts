@@ -144,6 +144,8 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		}
 	}));
 
+	const middleware = new JsonClientMiddleware();
+
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for json documents
@@ -157,8 +159,21 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 			// Synchronize the setting section 'json' to the server
 			fileEvents: workspace.createFileSystemWatcher('**/*.json')
 		},
-		middleware: new JsonClientMiddleware(configurationManager, schemaLoadStatusItem, documentSymbolsLimitStatusbarItem)
+		middleware
 	};
+
+	toDispose.push(middleware.onDiagnostics(e => {
+		schemaLoadStatusItem.update(e.uri, e.diagnostics);
+	}));
+
+	toDispose.push(middleware.onDocumentSymbols(e => {
+		const resultLimit = configurationManager.getSettings().json.resultLimit
+		if (e.symbolCount > resultLimit) {
+			documentSymbolsLimitStatusbarItem.update(e.document, resultLimit);
+		} else {
+			documentSymbolsLimitStatusbarItem.update(e.document, false);
+		}
+	}));
 
 	clientOptions.outputChannel = runtime.logOutputChannel;
 	// Create the language client and start the client.

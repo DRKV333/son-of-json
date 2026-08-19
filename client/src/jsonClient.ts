@@ -5,15 +5,15 @@
 
 import {
 	workspace, window, languages, ExtensionContext, extensions, Uri, 
-	Diagnostic, StatusBarAlignment, TextDocument, FormattingOptions, CancellationToken, 
-	ProviderResult, TextEdit, Range, Disposable, l10n,
+	Diagnostic, StatusBarAlignment, TextDocument, 
+	Range, Disposable, l10n,
 	RelativePattern, CodeAction, CodeActionKind, CodeActionContext
 } from 'vscode';
 
 import {
 	LanguageClientOptions, 
-	DidChangeConfigurationNotification, ResponseError, DocumentRangeFormattingParams,
-	DocumentRangeFormattingRequest} from 'vscode-languageclient';
+	DidChangeConfigurationNotification, ResponseError
+} from 'vscode-languageclient';
 
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
@@ -23,6 +23,7 @@ import { ConfigurationManager, SettingIds } from './configuration.js';
 import { JsonClientMiddleware } from './middleware.js';
 import { AsyncDisposable, LanguageClientConstructor, Runtime } from './runtimeTypes.js';
 import { CommandIds, CommandRegistry } from './commands.js';
+import { FormatterRegistration } from './formatterRegistration.js';
 
 export const languageServerDescription = l10n.t('JSON Language Server');
 
@@ -64,7 +65,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	const configurationManager = new ConfigurationManager();
 	toDispose.push(configurationManager);
 
-	let rangeFormatting: Disposable | undefined = undefined;
 	let schemaAssociationsCache: Promise<ISchemaAssociation[]> | undefined = undefined;
 
 	const documentSelector = languageParticipants.documentSelector;
@@ -273,13 +273,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		client.sendNotification(SchemaAssociationNotification.type, await getSchemaAssociations(true));
 	}));
 
-	// manually register / deregister format provider based on the `json.format.enable` setting avoiding issues with late registration. See #71652.
-	updateFormatterRegistration();
-	toDispose.push({ dispose: () => rangeFormatting && rangeFormatting.dispose() });
-
-	toDispose.push(configurationManager.onDidChangeFormatterSettings(() => {
-		updateFormatterRegistration();
-	}));
+	toDispose.push(new FormatterRegistration(client, configurationManager, documentSelector));
 
 	toDispose.push(configurationManager.onDidChangeDownloadSettings(() => {
 		triggerValidation();
@@ -293,38 +287,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	toDispose.push(workspace.onDidGrantWorkspaceTrust(() => triggerValidation()));
 
 	toDispose.push(createLanguageStatusItem(documentSelector, (uri: string) => client.sendRequest(LanguageStatusRequest.type, uri)));
-
-	function updateFormatterRegistration() {
-		const formatEnabled = workspace.getConfiguration().get(SettingIds.enableFormatter);
-		if (!formatEnabled && rangeFormatting) {
-			rangeFormatting.dispose();
-			rangeFormatting = undefined;
-		} else if (formatEnabled && !rangeFormatting) {
-			rangeFormatting = languages.registerDocumentRangeFormattingEditProvider(documentSelector, {
-				provideDocumentRangeFormattingEdits(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): ProviderResult<TextEdit[]> {
-					const filesConfig = workspace.getConfiguration('files', document);
-					const fileFormattingOptions = {
-						trimTrailingWhitespace: filesConfig.get<boolean>('trimTrailingWhitespace'),
-						trimFinalNewlines: filesConfig.get<boolean>('trimFinalNewlines'),
-						insertFinalNewline: filesConfig.get<boolean>('insertFinalNewline'),
-					};
-					const params: DocumentRangeFormattingParams = {
-						textDocument: client.code2ProtocolConverter.asTextDocumentIdentifier(document),
-						range: client.code2ProtocolConverter.asRange(range),
-						options: client.code2ProtocolConverter.asFormattingOptions(options, fileFormattingOptions)
-					};
-
-					return client.sendRequest(DocumentRangeFormattingRequest.type, params, token).then(
-						client.protocol2CodeConverter.asTextEdits,
-						(error) => {
-							client.handleFailedRequest(DocumentRangeFormattingRequest.type, undefined, error, []);
-							return Promise.resolve([]);
-						}
-					);
-				}
-			});
-		}
-	}
 
 	async function triggerValidation() { // TODO: Move this to commands somehow
 		const activeTextEditor = window.activeTextEditor;
@@ -375,7 +337,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		dispose: async () => {
 			await client.stop();
 			toDispose.forEach(d => d.dispose());
-			rangeFormatting?.dispose();
 		}
 	};
 }

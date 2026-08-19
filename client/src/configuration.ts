@@ -74,14 +74,6 @@ export class ConfigurationManager implements Disposable {
 
 	constructor() {
 		this.didChangeSubscription = workspace.onDidChangeConfiguration(e => {
-			if (e.affectsConfiguration(SettingIds.enableFormatter)) {
-				this.didChangeFormatterSettingsEmitter.fire(e);
-			}
-
-			if (e.affectsConfiguration(SettingIds.enableSchemaDownload) || e.affectsConfiguration(SettingIds.trustedDomains)) {
-				this.didChangeDownloadSettingsEmitter.fire(e);
-			}
-
 			if (
 				e.affectsConfiguration(SettingIds.editorFoldingMaximumRegions) ||
 				e.affectsConfiguration(SettingIds.editorColorDecoratorsLimit) ||
@@ -91,6 +83,14 @@ export class ConfigurationManager implements Disposable {
 				this.settingsCache = undefined;
 				this.settingsCacheWithExtraLimits = undefined;
 				this.didChangeAnySettingsEmitter.fire(e);
+			}
+
+			if (e.affectsConfiguration(SettingIds.enableFormatter)) {
+				this.didChangeFormatterSettingsEmitter.fire(e);
+			}
+
+			if (e.affectsConfiguration(SettingIds.enableSchemaDownload) || e.affectsConfiguration(SettingIds.trustedDomains)) {
+				this.didChangeDownloadSettingsEmitter.fire(e);
 			}
 		});
 	}

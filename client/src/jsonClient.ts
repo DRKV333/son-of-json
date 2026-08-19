@@ -4,55 +4,27 @@
  *--------------------------------------------------------------------------------------------*/
 
 import {
-	workspace, window, languages, commands, LogOutputChannel, ExtensionContext, extensions, Uri, 
+	workspace, window, languages, ExtensionContext, extensions, Uri, 
 	Diagnostic, StatusBarAlignment, TextDocument, FormattingOptions, CancellationToken, 
 	ProviderResult, TextEdit, Range, Disposable, l10n,
 	RelativePattern, CodeAction, CodeActionKind, CodeActionContext
 } from 'vscode';
+
 import {
 	LanguageClientOptions, 
-	Diagnostic as LSPDiagnostic,
 	DidChangeConfigurationNotification, ResponseError, DocumentRangeFormattingParams,
-	DocumentRangeFormattingRequest, BaseLanguageClient} from 'vscode-languageclient';
+	DocumentRangeFormattingRequest} from 'vscode-languageclient';
 
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
 import { matchesUrlPattern } from './utils/urlMatch.js';
-import { DocumentSortingParams, DocumentSortingRequest, ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, SchemaRequestServiceErrors, SortOptions, ValidateContentRequest, VSCodeContentRequest } from './messageTypes.js';
+import { ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, SchemaRequestServiceErrors, VSCodeContentRequest } from './messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
 import { JsonClientMiddleware } from './middleware.js';
-
-export namespace CommandIds {
-	export const workbenchActionOpenSettings = 'workbench.action.openSettings';
-	export const workbenchTrustManage = 'workbench.trust.manage';
-	export const retryResolveSchemaCommandId = '_jsonson.retryResolveSchema';
-	export const configureTrustedDomainsCommandId = '_jsonson.configureTrustedDomains';
-	export const showAssociatedSchemaList = '_jsonson.showAssociatedSchemaList';
-	export const clearCacheCommandId = 'jsonson.clearCache';
-	export const validateCommandId = 'jsonson.validate';
-	export const sortCommandId = 'jsonson.sort';
-}
-
-export type LanguageClientConstructor = (name: string, description: string, clientOptions: LanguageClientOptions) => BaseLanguageClient;
-
-export interface Runtime {
-	schemaRequests: SchemaRequestService;
-	readonly timer: {
-		setTimeout(callback: (...args: any[]) => void, ms: number, ...args: any[]): Disposable;
-	};
-	logOutputChannel: LogOutputChannel;
-}
-
-export interface SchemaRequestService {
-	getContent(uri: string): Promise<string>;
-	clearCache?(): Promise<string[]>;
-}
+import { AsyncDisposable, LanguageClientConstructor, Runtime } from './runtimeTypes.js';
+import { CommandIds, CommandRegistry } from './commands.js';
 
 export const languageServerDescription = l10n.t('JSON Language Server');
-
-export interface AsyncDisposable {
-	dispose(): Promise<void>;
-}
 
 export async function startClient(context: ExtensionContext, newLanguageClient: LanguageClientConstructor, runtime: Runtime): Promise<AsyncDisposable> {
 	const languageParticipants = new LanguageParticipants();
@@ -104,45 +76,11 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 
 	const fileSchemaErrors = new Map<string, string>();
 
-	let isClientReady = false;
-
 	const documentSymbolsLimitStatusbarItem = createLimitStatusItem((limit: number) => createDocumentSymbolsLimitItem(documentSelector, SettingIds.maxItemsComputed, limit));
 	toDispose.push(documentSymbolsLimitStatusbarItem);
 
 	const schemaLoadStatusItem = createSchemaLoadStatusItem((diagnostic: Diagnostic) => createSchemaLoadIssueItem(documentSelector, configurationManager.getSettings().json.schemaDownloadEnabled, diagnostic));
 	toDispose.push(schemaLoadStatusItem);
-
-	toDispose.push(commands.registerCommand(CommandIds.clearCacheCommandId, async () => {
-		if (isClientReady && runtime.schemaRequests.clearCache) {
-			const cachedSchemas = await runtime.schemaRequests.clearCache();
-			await client.sendNotification(SchemaContentChangeNotification.type, cachedSchemas);
-		}
-		window.showInformationMessage(l10n.t('JSON schema cache cleared.'));
-	}));
-
-	toDispose.push(commands.registerCommand(CommandIds.validateCommandId, async (schemaUri: Uri, content: string) => {
-		const diagnostics: LSPDiagnostic[] = await client.sendRequest(ValidateContentRequest.type, { schemaUri: schemaUri.toString(), content });
-		return diagnostics.map(client.protocol2CodeConverter.asDiagnostic);
-	}));
-
-	toDispose.push(commands.registerCommand(CommandIds.sortCommandId, async () => {
-
-		if (isClientReady) {
-			const textEditor = window.activeTextEditor;
-			if (textEditor) {
-				const documentOptions = textEditor.options;
-				const textEdits = await getSortTextEdits(textEditor.document, documentOptions.tabSize, documentOptions.insertSpaces);
-				const success = await textEditor.edit(mutator => {
-					for (const edit of textEdits) {
-						mutator.replace(client.protocol2CodeConverter.asRange(edit.range), edit.newText);
-					}
-				});
-				if (!success) {
-					window.showErrorMessage(l10n.t('Failed to sort the JSONC document, please consider opening an issue.'));
-				}
-			}
-		}
-	}));
 
 	const middleware = new JsonClientMiddleware();
 
@@ -179,6 +117,10 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	// Create the language client and start the client.
 	const client = newLanguageClient('json', languageServerDescription, clientOptions);
 	client.registerProposedFeatures();
+
+	const commandRegistry = new CommandRegistry(client, runtime, () => triggerValidation());
+	toDispose.push(commandRegistry);
+	commandRegistry.registerAll();
 
 	const schemaDocuments: { [uri: string]: boolean } = {};
 
@@ -225,7 +167,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 
 	await client.start();
 
-	isClientReady = true;
+	commandRegistry.SetClientReady();
 
 	const handleContentChange = (uriString: string) => {
 		if (schemaDocuments[uriString]) {
@@ -277,10 +219,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 
 	toDispose.push(workspace.onDidChangeTextDocument(e => handleContentChange(e.document.uri.toString())));
 	toDispose.push(workspace.onDidCloseTextDocument(d => handleContentClosed(d.uri.toString())));
-
-	toDispose.push(commands.registerCommand(CommandIds.retryResolveSchemaCommandId, triggerValidation));
-
-	toDispose.push(commands.registerCommand(CommandIds.configureTrustedDomainsCommandId, configureTrustedDomains));
 
 	toDispose.push(languages.registerCodeActionsProvider(documentSelector, {
 		provideCodeActions(_document: TextDocument, _range: Range, context: CodeActionContext): CodeAction[] {
@@ -388,7 +326,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		}
 	}
 
-	async function triggerValidation() {
+	async function triggerValidation() { // TODO: Move this to commands somehow
 		const activeTextEditor = window.activeTextEditor;
 		if (activeTextEditor && languageParticipants.hasLanguage(activeTextEditor.document.languageId)) {
 			schemaResolutionErrorStatusBarItem.text = '$(watch)';
@@ -396,29 +334,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 			const activeDocUri = activeTextEditor.document.uri.toString();
 			await client.sendRequest(ForceValidateRequest.type, activeDocUri);
 		}
-	}
-
-	async function getSortTextEdits(document: TextDocument, tabSize: string | number = 4, insertSpaces: string | boolean = true): Promise<TextEdit[]> {
-		const filesConfig = workspace.getConfiguration('files', document);
-		const options: SortOptions = {
-			tabSize: Number(tabSize),
-			insertSpaces: Boolean(insertSpaces),
-			trimTrailingWhitespace: filesConfig.get<boolean>('trimTrailingWhitespace'),
-			trimFinalNewlines: filesConfig.get<boolean>('trimFinalNewlines'),
-			insertFinalNewline: filesConfig.get<boolean>('insertFinalNewline'),
-		};
-		const params: DocumentSortingParams = {
-			uri: document.uri.toString(),
-			options
-		};
-		const edits = await client.sendRequest(DocumentSortingRequest.type, params);
-		// Here we convert the JSON objects to real TextEdit objects
-		return edits.map((edit) => {
-			return new TextEdit(
-				new Range(edit.range.start.line, edit.range.start.character, edit.range.end.line, edit.range.end.character),
-				edit.newText
-			);
-		});
 	}
 
 	async function getSchemaAssociations(forceRefresh: boolean): Promise<ISchemaAssociation[]> {
@@ -453,78 +368,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		}
 
 		return false;
-	}
-
-	async function configureTrustedDomains(schemaUri: string): Promise<void> {
-		interface QuickPickItemWithAction {
-			label: string;
-			description?: string;
-			execute: () => Promise<void>;
-		}
-
-		const normalizeTrustedDomains = (domains: Record<string, boolean>): Record<string, boolean> => {
-			return Object.fromEntries(Object.entries(domains).sort(([a], [b]) => a.localeCompare(b)));
-		};
-
-		const updateTrustedDomains = async (updateDomain: string): Promise<void> => {
-			const config = workspace.getConfiguration();
-			const currentDomains = config.get<Record<string, boolean>>(SettingIds.trustedDomains, {});
-			if (currentDomains[updateDomain] === true) {
-				return;
-			}
-			const nextDomains = normalizeTrustedDomains({
-				...currentDomains,
-				[updateDomain]: true
-			});
-			await config.update(SettingIds.trustedDomains, nextDomains, true);
-		};
-
-		const items: QuickPickItemWithAction[] = [];
-
-		try {
-			const uri = Uri.parse(schemaUri);
-			const domain = `${uri.scheme}://${uri.authority}`;
-
-			// Add "Trust domain" option
-			items.push({
-				label: l10n.t('Trust Domain: {0}', domain),
-				description: l10n.t('Allow all schemas from this domain'),
-				execute: async () => {
-					await updateTrustedDomains(domain);
-					await commands.executeCommand(CommandIds.workbenchActionOpenSettings, SettingIds.trustedDomains);
-				}
-			});
-
-			// Add "Trust URI" option
-			items.push({
-				label: l10n.t('Trust URI: {0}', schemaUri),
-				description: l10n.t('Allow only this specific schema'),
-				execute: async () => {
-					await updateTrustedDomains(schemaUri);
-					await commands.executeCommand(CommandIds.workbenchActionOpenSettings, SettingIds.trustedDomains);
-				}
-			});
-		} catch (e) {
-			runtime.logOutputChannel.error(`Failed to parse schema URI: ${schemaUri}`);
-		}
-
-
-		// Always add "Configure setting" option
-		items.push({
-			label: l10n.t('Configure Setting'),
-			description: l10n.t('Open settings editor'),
-			execute: async () => {
-				await commands.executeCommand(CommandIds.workbenchActionOpenSettings, SettingIds.trustedDomains);
-			}
-		});
-
-		const selected = await window.showQuickPick(items, {
-			placeHolder: l10n.t('Select how to configure trusted schema domains')
-		});
-
-		if (selected) {
-			await selected.execute();
-		}
 	}
 
 

@@ -84,6 +84,7 @@ export class LanguageParticipants implements Disposable {
 
 	public dispose(): void {
 		this.changeListener.dispose();
+		this.onDidChangeEmitter.dispose();
 	}
 }
 

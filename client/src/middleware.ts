@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { CancellationToken, CompletionContext, CompletionItem, CompletionList, Diagnostic, DocumentSymbol, EventEmitter, Hover, MarkdownString, Position, Range, SymbolInformation, TextDocument, Uri } from "vscode";
+import { CancellationToken, CompletionContext, CompletionItem, CompletionList, Diagnostic, DocumentSymbol, Disposable, EventEmitter, Hover, MarkdownString, Position, Range, SymbolInformation, TextDocument, Uri } from "vscode";
 import { DocumentDiagnosticReportKind, HandleDiagnosticsSignature, Middleware, ProvideCompletionItemsSignature, ProvideDiagnosticSignature, ProvideDocumentSymbolsSignature, ProvideHoverSignature, vsdiag } from "vscode-languageclient";
 
 export interface DiagnosticsEventData {
@@ -16,7 +16,7 @@ export interface DocumentSymbolsEventData {
     symbolCount: number
 }
 
-export class JsonClientMiddleware implements Middleware {
+export class JsonClientMiddleware implements Middleware, Disposable {
 
     private readonly onDiagnosticsEmitter = new EventEmitter<DiagnosticsEventData>();
     public readonly onDiagnostics = this.onDiagnosticsEmitter.event;
@@ -82,6 +82,11 @@ export class JsonClientMiddleware implements Middleware {
         this.onDocumentSymbolsEmitter.fire({ document, symbolCount });
 
         return r;
+    }
+
+    dispose() {
+        this.onDiagnosticsEmitter.dispose();
+        this.onDocumentSymbolsEmitter.dispose();
     }
 }
 

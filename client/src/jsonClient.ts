@@ -81,6 +81,7 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	toDispose.push(schemaLoadStatusItem);
 
 	const middleware = new JsonClientMiddleware();
+	toDispose.push(middleware);
 
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {

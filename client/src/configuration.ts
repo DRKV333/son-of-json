@@ -97,6 +97,9 @@ export class ConfigurationManager implements Disposable {
 
 	public dispose() {
 		this.didChangeSubscription.dispose();
+		this.didChangeFormatterSettingsEmitter.dispose();
+		this.didChangeDownloadSettingsEmitter.dispose();
+		this.didChangeAnySettingsEmitter.dispose();
 	}
 
 	public getSettingsWithExtraLimits(): Settings {

@@ -4,10 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 
 import {
-	workspace, window, languages, ExtensionContext, extensions, Uri, 
+	workspace, window, languages, ExtensionContext, 
 	Diagnostic, StatusBarAlignment, TextDocument, 
 	Range, Disposable, l10n,
-	RelativePattern, CodeAction, CodeActionKind, CodeActionContext
+	CodeAction, CodeActionKind, CodeActionContext
 } from 'vscode';
 
 import {
@@ -16,14 +16,14 @@ import {
 
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
-import { matchesUrlPattern } from './utils/urlMatch.js';
-import { ErrorCodes, ForceValidateRequest, ISchemaAssociation, LanguageStatusRequest, SchemaAssociationNotification } from './messageTypes.js';
+import { ErrorCodes, ForceValidateRequest, LanguageStatusRequest, SchemaAssociationNotification } from './messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
 import { JsonClientMiddleware } from './middleware.js';
 import { AsyncDisposable, LanguageClientConstructor, Runtime } from './runtimeTypes.js';
 import { CommandIds, CommandRegistry } from './commands.js';
 import { FormatterRegistration } from './formatterRegistration.js';
 import { ContentRequestHandler } from './contentRequestHandler.js';
+import { SchemaAssociationManager } from './schemaAssociations.js';
 
 export const languageServerDescription = l10n.t('JSON Language Server');
 
@@ -65,8 +65,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	const configurationManager = new ConfigurationManager();
 	toDispose.push(configurationManager);
 
-	let schemaAssociationsCache: Promise<ISchemaAssociation[]> | undefined = undefined;
-
 	const documentSelector = languageParticipants.documentSelector;
 
 	const schemaResolutionErrorStatusBarItem = window.createStatusBarItem('status.jsonson.resolveError', StatusBarAlignment.Right, 0);
@@ -93,7 +91,6 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 			customCapabilities: { rangeFormatting: { editLimit: 10000 } }
 		},
 		synchronize: {
-			// Synchronize the setting section 'json' to the server
 			fileEvents: workspace.createFileSystemWatcher('**/*.json')
 		},
 		middleware
@@ -121,8 +118,11 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 	toDispose.push(commandRegistry);
 	commandRegistry.registerAll();
 
+	const schemaAssociationManager = new SchemaAssociationManager();
+	toDispose.push(schemaAssociationManager);
+
 	// handle content request
-	toDispose.push(new ContentRequestHandler(client, runtime, configurationManager, isTrusted));
+	toDispose.push(new ContentRequestHandler(client, runtime, configurationManager, schemaAssociationManager));
 
 	await client.start();
 
@@ -169,16 +169,9 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		providedCodeActionKinds: [CodeActionKind.QuickFix]
 	}));
 
-	client.sendNotification(SchemaAssociationNotification.type, await getSchemaAssociations(false));
-
-	toDispose.push(extensions.onDidChange(async _ => {
-		client.sendNotification(SchemaAssociationNotification.type, await getSchemaAssociations(true));
-	}));
-
-	const associationWatcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.parse(`vscode://schemas-associations/`), '**/schemas-associations.json'));
-	toDispose.push(associationWatcher);
-	toDispose.push(associationWatcher.onDidChange(async _e => {
-		client.sendNotification(SchemaAssociationNotification.type, await getSchemaAssociations(true));
+	client.sendNotification(SchemaAssociationNotification.type, await schemaAssociationManager.getSchemaAssociations());
+	toDispose.push(schemaAssociationManager.onDidChangeAssociations(async () => {
+		client.sendNotification(SchemaAssociationNotification.type, await schemaAssociationManager.getSchemaAssociations());
 	}));
 
 	toDispose.push(new FormatterRegistration(client, configurationManager, documentSelector));
@@ -206,104 +199,10 @@ async function startClientWithParticipants(_context: ExtensionContext, languageP
 		}
 	}
 
-	async function getSchemaAssociations(forceRefresh: boolean): Promise<ISchemaAssociation[]> {
-		if (!schemaAssociationsCache || forceRefresh) {
-			schemaAssociationsCache = computeSchemaAssociations();
-		}
-		return schemaAssociationsCache;
-	}
-
-	async function isTrusted(uri: Uri): Promise<boolean> {
-		if (uri.scheme !== 'http' && uri.scheme !== 'https') {
-			return true;
-		}
-		const uriString = uri.toString(true);
-
-		// Check against trustedDomains setting
-		if (matchesUrlPattern(uri, configurationManager.getSettings().json.trustedDomains)) {
-			return true;
-		}
-
-		const knownAssociations = await getSchemaAssociations(false);
-		for (const association of knownAssociations) {
-			if (association.uri === uriString) {
-				return true;
-			}
-		}
-		const settings = configurationManager.getSettings();
-		for (const schemaSetting of settings.json.schemas) {
-			if (schemaSetting.retrievalUri === uriString) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-
 	return {
 		dispose: async () => {
 			await client.stop();
 			toDispose.forEach(d => d.dispose());
 		}
 	};
-}
-
-async function computeSchemaAssociations(): Promise<ISchemaAssociation[]> {
-	const extensionAssociations = getSchemaExtensionAssociations();
-	return extensionAssociations.concat(await getDynamicSchemaAssociations());
-}
-
-function getSchemaExtensionAssociations(): ISchemaAssociation[] {
-	const associations: ISchemaAssociation[] = [];
-	extensions.all.forEach(extension => {
-		const packageJSON = extension.packageJSON;
-		if (packageJSON && packageJSON.contributes && packageJSON.contributes.jsonValidation) {
-			const jsonValidation = packageJSON.contributes.jsonValidation;
-			if (Array.isArray(jsonValidation)) {
-				jsonValidation.forEach(jv => {
-					let { fileMatch, url } = jv;
-					if (typeof fileMatch === 'string') {
-						fileMatch = [fileMatch];
-					}
-					if (Array.isArray(fileMatch) && typeof url === 'string') {
-						let uri: string = url;
-						if (uri[0] === '.' && uri[1] === '/') {
-							uri = Uri.joinPath(extension.extensionUri, uri).toString();
-						}
-						fileMatch = fileMatch.map(fm => {
-							if (fm[0] === '%') {
-								fm = fm.replace(/%APP_SETTINGS_HOME%/, '/User');
-								fm = fm.replace(/%MACHINE_SETTINGS_HOME%/, '/Machine');
-								fm = fm.replace(/%APP_WORKSPACES_HOME%/, '/Workspaces');
-							} else if (!fm.match(/^(\w+:\/\/|\/|!)/)) {
-								fm = '/' + fm;
-							}
-							return fm;
-						});
-						associations.push({ fileMatch, uri });
-					}
-				});
-			}
-		}
-	});
-	return associations;
-}
-
-async function getDynamicSchemaAssociations(): Promise<ISchemaAssociation[]> {
-	const result: ISchemaAssociation[] = [];
-	try {
-		const data = await workspace.fs.readFile(Uri.parse(`vscode://schemas-associations/schemas-associations.json`));
-		const rawStr = new TextDecoder().decode(data);
-		const obj = <Record<string, string[]>>JSON.parse(rawStr);
-		for (const item of Object.keys(obj)) {
-			result.push({
-				fileMatch: obj[item],
-				uri: item
-			});
-		}
-	} catch {
-		// ignore
-	}
-	return result;
 }

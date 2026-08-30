@@ -13,7 +13,7 @@ import { getLanguageService, SchemaDraft, TextDocument } from '../jsonLanguageSe
 import { URI } from 'vscode-uri';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const testsPath = path.join(__dirname, "../../../node_modules/json-schema-test-suite/tests");
+const testsPath = path.join(__dirname, "../../../../../node_modules/json-schema-test-suite/tests");
 
 const drafts = [
 	'draft4', 'draft6', 'draft7', 'draft2019-09', 'draft2020-12'
@@ -94,7 +94,7 @@ const schemaRequestService = async (uri: string): Promise<string> => {
 	// Handle localhost:1234 URLs by loading from remotes directory
 	if (uri.startsWith('http://localhost:1234/')) {
 		const remotePath = uri.replace('http://localhost:1234/', '');
-		const remoteFilePath = path.join(__dirname, '../../../node_modules/json-schema-test-suite/remotes', remotePath);
+		const remoteFilePath = path.join(__dirname, '../../../../../node_modules/json-schema-test-suite/remotes', remotePath);
 		try {
 			const content = fs.readFileSync(remoteFilePath, 'utf8');
 			return content;

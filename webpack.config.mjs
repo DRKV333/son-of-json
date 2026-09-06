@@ -18,6 +18,14 @@ export default [
             }
         },
         devtool: "nosources-source-map",
+        module: {
+            rules: [
+                {
+                    test: /\.js$/,
+                    extractSourceMap: true,
+                }
+            ]
+        },
         externals: {
             vscode: "commonjs vscode"
         },
@@ -32,6 +40,14 @@ export default [
             filename: "jsonServerMain.js",
         },
         devtool: "nosources-source-map",
+        module: {
+            rules: [
+                {
+                    test: /\.js$/,
+                    extractSourceMap: true,
+                }
+            ]
+        },
         experiments: { outputModule: true }
     }
 ];

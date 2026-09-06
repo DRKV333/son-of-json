@@ -27,6 +27,9 @@
 			"request": "attach",
 			"port": 6004,
 			"sourceMaps": true,
+			"sourceMapPathOverrides": {
+				"webpack://son-of-json-workspace/*": "${workspaceFolder}/*",
+			}
 		}
 	],
 	"compounds": [

@@ -16,7 +16,7 @@ import {
 
 import { createDocumentSymbolsLimitItem, createLanguageStatusItem, createLimitStatusItem, createSchemaLoadIssueItem, createSchemaLoadStatusItem } from './languageStatus.js';
 import { LanguageParticipants } from './languageParticipants.js';
-import { ErrorCodes, ForceValidateRequest, LanguageStatusRequest, SchemaAssociationNotification } from './messageTypes.js';
+import { ErrorCodes, ForceValidateRequest, LanguageStatusRequest, SchemaAssociationNotification } from 'son-of-json-shared/messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
 import { JsonClientMiddleware } from './middleware.js';
 import { AsyncDisposable, LanguageClientConstructor, Runtime } from './runtimeTypes.js';

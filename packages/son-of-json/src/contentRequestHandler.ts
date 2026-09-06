@@ -5,7 +5,7 @@
 
 import { Disposable, l10n, RelativePattern, Uri, workspace } from "vscode";
 import { BaseLanguageClient, ResponseError } from "vscode-languageclient";
-import { SchemaContentChangeNotification, SchemaRequestServiceErrors, VSCodeContentRequest } from "./messageTypes.js";
+import { SchemaContentChangeNotification, SchemaRequestServiceErrors, VSCodeContentRequest } from "son-of-json-shared/messageTypes.js";
 import { Runtime } from "./runtimeTypes.js";
 import { ConfigurationManager, SettingIds } from "./configuration.js";
 import { SchemaAssociationManager } from "./schemaAssociations.js";

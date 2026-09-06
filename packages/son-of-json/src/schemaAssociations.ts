@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable, EventEmitter, extensions, RelativePattern, Uri, workspace } from "vscode";
-import { ISchemaAssociation } from "./messageTypes.js";
+import { ISchemaAssociation } from "son-of-json-shared/messageTypes.js";
 
 export class SchemaAssociationManager implements Disposable {
     private schemaAssociationsCache: ISchemaAssociation[] | undefined;

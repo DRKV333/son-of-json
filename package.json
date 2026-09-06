@@ -3,12 +3,14 @@
     "workspaces": [
         "packages/son-of-json",
         "packages/son-of-json-languageserver",
+        "packages/son-of-json-shared",
         "packages/vscode-json-languageservice"
     ],
     "scripts": {
         "compile": "npx tsc -p ./packages/vscode-json-languageservice/src && npx tsc -p ./packages/son-of-json-languageserver && npx tsc -p ./packages/son-of-json",
         "watch-server": "npx tsc -w -p ./packages/son-of-json-languageserver",
         "watch-client": "npx tsc -w -p ./packages/son-of-json",
+        "watch-shared": "npx tsc -w -p ./packages/son-of-json-shared",
         "watch-lib": "npx tsc -w -p ./packages/vscode-json-languageservice/src",
         "bundle": "npm run compile && npx webpack-cli build -c webpack.config.mjs",
         "patch-dist": "git apply --ignore-whitespace --unidiff-zero packages/son-of-json/package.dist.patch",

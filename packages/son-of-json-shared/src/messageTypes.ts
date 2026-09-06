@@ -14,6 +14,10 @@ export namespace ForceValidateRequest {
 	export const type: RequestType<string, Diagnostic[], any> = new RequestType('json/validate');
 }
 
+export namespace ForceValidateAllRequest {
+	export const type: RequestType<void, void, any> = new RequestType('json/validateAll');
+}
+
 export namespace LanguageStatusRequest {
 	export const type: RequestType<string, JSONLanguageStatus, any> = new RequestType('json/languageStatus');
 }

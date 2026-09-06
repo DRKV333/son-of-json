@@ -8,7 +8,7 @@ import {
 	extensions, workspace, Extension, QuickPickItemKind,
 	ThemeIcon, TextDocument, LanguageStatusSeverity, l10n, DocumentSelector, Diagnostic
 } from 'vscode';
-import { ErrorCodes, isSchemaResolveError, JSONLanguageStatus } from './messageTypes.js';
+import { ErrorCodes, isSchemaResolveError, JSONLanguageStatus } from 'son-of-json-shared/messageTypes.js';
 import { ConfigurationManager, SettingIds } from './configuration.js';
 import { CommandIds } from './commands.js';
 

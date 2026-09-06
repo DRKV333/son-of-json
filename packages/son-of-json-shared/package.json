@@ -1,0 +1,19 @@
+{
+  "name": "son-of-json-shared",
+  "version": "1.0.0",
+  "author": "DRKV",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "*"
+  },
+  "exports": {
+    "./*": "./out/*"
+  },
+  "dependencies": {
+    "vscode-languageserver-protocol": "3.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "24.x"
+  }
+}

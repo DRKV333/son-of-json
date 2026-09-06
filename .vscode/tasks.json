@@ -55,6 +55,25 @@
             }
         },
         {
+            "label": "Watch Shared",
+            "type": "npm",
+            "script": "watch-shared",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never",
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "options": {
+                "shell": {
+                    "args": [ "-i" ]
+                }
+            }
+        },
+        {
             "label": "Watch Language Services",
             "type": "npm",
             "script": "watch-lib",
@@ -78,6 +97,7 @@
             "dependsOn": [
                 "Watch Server",
                 "Watch Client",
+                "Watch Shared",
                 "Watch Language Services"
             ],
             "group": {

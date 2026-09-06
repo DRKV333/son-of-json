@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { commands, Disposable, l10n, Range, TextDocument, TextEdit, Uri, window, workspace } from "vscode";
-import { DocumentSortingParams, DocumentSortingRequest, SchemaContentChangeNotification, SortOptions, ValidateContentRequest } from "./messageTypes.js";
+import { DocumentSortingParams, DocumentSortingRequest, SchemaContentChangeNotification, SortOptions, ValidateContentRequest } from "son-of-json-shared/messageTypes.js";
 import { BaseLanguageClient, Diagnostic } from "vscode-languageclient";
 import { Runtime } from "./runtimeTypes.js";
 import { SettingIds } from "./configuration.js";

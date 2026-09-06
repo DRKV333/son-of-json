@@ -5,63 +5,17 @@
 
 import {
 	Connection,
-	TextDocuments, InitializeParams, InitializeResult, NotificationType, RequestType, ResponseError,
+	TextDocuments, InitializeParams, InitializeResult, ResponseError,
 	DocumentRangeFormattingRequest, Disposable, ServerCapabilities, TextDocumentSyncKind, TextEdit, DocumentFormattingRequest, TextDocumentIdentifier, FormattingOptions, Diagnostic, CodeAction, CodeActionKind
 } from 'vscode-languageserver';
 
 import { runSafe, runSafeAsync } from './utils/runner.js';
 import { DiagnosticsSupport, registerDiagnosticsPullSupport, registerDiagnosticsPushSupport } from './utils/validation.js';
-import { TextDocument, JSONDocument, getLanguageService, DocumentLanguageSettings, SchemaConfiguration, ClientCapabilities, Range, Position, SortOptions, SeverityLevel } from 'vscode-json-languageservice';
+import { TextDocument, JSONDocument, getLanguageService, DocumentLanguageSettings, SchemaConfiguration, ClientCapabilities, Range, Position, SeverityLevel } from 'vscode-json-languageservice';
 import { getLanguageModelCache } from './languageModelCache.js';
 import { Utils, URI } from 'vscode-uri';
 import * as l10n from '@vscode/l10n';
-
-type ISchemaAssociations = Record<string, string[]>;
-
-type JSONLanguageStatus = { schemas: string[] };
-
-namespace SchemaAssociationNotification {
-	export const type: NotificationType<ISchemaAssociations | SchemaConfiguration[]> = new NotificationType('json/schemaAssociations');
-}
-
-namespace VSCodeContentRequest {
-	export const type: RequestType<string, string, any> = new RequestType('vscode/content');
-}
-
-namespace SchemaContentChangeNotification {
-	export const type: NotificationType<string | string[]> = new NotificationType('json/schemaContent');
-}
-
-namespace ForceValidateRequest {
-	export const type: RequestType<string, Diagnostic[], any> = new RequestType('json/validate');
-}
-
-namespace ForceValidateAllRequest {
-	export const type: RequestType<void, void, any> = new RequestType('json/validateAll');
-}
-
-namespace LanguageStatusRequest {
-	export const type: RequestType<string, JSONLanguageStatus, any> = new RequestType('json/languageStatus');
-}
-
-namespace ValidateContentRequest {
-	export const type: RequestType<{ schemaUri: string; content: string }, Diagnostic[], any> = new RequestType('json/validateContent');
-}
-
-export interface DocumentSortingParams {
-	/**
-	 * The uri of the document to sort.
-	 */
-	uri: string;
-	/**
-	 * The sort options
-	 */
-	options: SortOptions;
-}
-
-namespace DocumentSortingRequest {
-	export const type: RequestType<DocumentSortingParams, TextEdit[], any> = new RequestType('json/sort');
-}
+import { DocumentSortingRequest, ForceValidateAllRequest, ForceValidateRequest, ISchemaAssociations, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, ValidateContentRequest, VSCodeContentRequest } from 'son-of-json-shared/messageTypes.js';
 
 const workspaceContext = {
 	resolveRelativePath: (relativePath: string, resource: string) => {

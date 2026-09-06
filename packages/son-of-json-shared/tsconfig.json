@@ -1,0 +1,21 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./out",
+		"lib": [
+			"ES2024",
+			"WebWorker"
+		],
+		"types": [
+			"node"
+		],
+		"typeRoots": [
+			"../../node_modules/@types"
+		],
+		"declaration": true,
+	},
+	"include": [
+		"src/**/*"
+	]
+}

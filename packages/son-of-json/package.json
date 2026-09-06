@@ -184,6 +184,7 @@
   },
   "dependencies": {
     "request-light": "^0.8.0",
+    "son-of-json-shared": "file:../son-of-json-shared",
     "vscode-languageclient": "^10.0.0-next.22"
   },
   "devDependencies": {

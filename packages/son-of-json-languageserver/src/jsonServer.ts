@@ -16,6 +16,7 @@ import { getLanguageModelCache } from './languageModelCache.js';
 import { Utils, URI } from 'vscode-uri';
 import * as l10n from '@vscode/l10n';
 import { DocumentSortingRequest, ForceValidateAllRequest, ForceValidateRequest, ISchemaAssociations, LanguageStatusRequest, SchemaAssociationNotification, SchemaContentChangeNotification, ValidateContentRequest, VSCodeContentRequest } from 'son-of-json-shared/messageTypes.js';
+import { JSONSchemaServerSettings, ServerSettings } from 'son-of-json-shared/settings.js';
 
 const workspaceContext = {
 	resolveRelativePath: (relativePath: string, resource: string) => {
@@ -162,44 +163,7 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
 		return { capabilities };
 	});
 
-
-
-	// The settings interface describes the server relevant settings part
-	interface Settings {
-		json?: {
-			schemas?: JSONSchemaSettings[];
-			format?: { enable?: boolean };
-			keepLines?: { enable?: boolean };
-			validate?: {
-				enable?: boolean;
-				comments?: SeverityLevel;
-				trailingCommas?: SeverityLevel;
-				schemaValidation?: SeverityLevel;
-				schemaRequest?: SeverityLevel;
-			};
-			resultLimit?: number;
-			jsonFoldingLimit?: number;
-			jsoncFoldingLimit?: number;
-			jsonColorDecoratorLimit?: number;
-			jsoncColorDecoratorLimit?: number;
-		};
-		http?: {
-			proxy?: string;
-			proxyStrictSSL?: boolean;
-		};
-	}
-
-	interface JSONSchemaSettings {
-		uri?: string;
-		retrievalUri?: string;
-		fileMatch?: string[];
-		schema?: any;
-		folderUri?: string;
-	}
-
-
-
-	let jsonConfigurationSettings: JSONSchemaSettings[] | undefined = undefined;
+	let jsonConfigurationSettings: JSONSchemaServerSettings[] | undefined = undefined;
 	let schemaAssociations: ISchemaAssociations | SchemaConfiguration[] | undefined = undefined;
 	let formatterRegistrations: Thenable<Disposable>[] | null = null;
 	let validateEnabled = true;
@@ -211,7 +175,7 @@ export function startServer(connection: Connection, runtime: RuntimeEnvironment)
 
 	// The settings have changed. Is sent on server activation as well.
 	connection.onDidChangeConfiguration((change) => {
-		const settings = <Settings>change.settings;
+		const settings = <ServerSettings>change.settings;
 		runtime.configureHttpRequests?.(settings?.http?.proxy, !!settings.http?.proxyStrictSSL);
 		jsonConfigurationSettings = settings.json?.schemas;
 		validateEnabled = !!settings.json?.validate?.enable;

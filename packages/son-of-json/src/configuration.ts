@@ -5,6 +5,7 @@
 
 import { Uri, workspace, Disposable, ConfigurationChangeEvent, Event, EventEmitter } from "vscode";
 import { hash } from "./utils/hash.js";
+import { JSONSchemaServerSettings, ServerSettings } from "son-of-json-shared/settings.js";
 
 export namespace SettingIds {
 	export const jsonsonSection = 'jsonson';
@@ -29,32 +30,15 @@ export namespace SettingIds {
 	export const editorColorDecoratorsLimit = `${editorSection}.${editorSectionColorDecoratorsLimitKey}`;
 }
 
-export interface JSONSchemaSettings {
-	uri?: string;
+export interface JSONSchemaSettings extends JSONSchemaServerSettings {
 	schemaFile?: string;
-	retrievalUri?: string;
-	fileMatch?: string[];
-	schema?: any;
-	folderUri?: string;
 };
 
-export interface Settings {
-	json: {
+export interface Settings extends Required<ServerSettings> {
+	json: Required<ServerSettings["json"]> & {
 		schemas: JSONSchemaSettings[];
-		format: { enable?: boolean };
-		keepLines: { enable?: boolean };
-		validate: { enable?: boolean };
-		resultLimit: number;
-		jsonFoldingLimit: number;
-		jsoncFoldingLimit: number;
-		jsonColorDecoratorLimit: number;
-		jsoncColorDecoratorLimit: number;
 		schemaDownloadEnabled: boolean;
 		trustedDomains: Record<string, boolean>;
-	};
-	http: {
-		proxy?: string;
-		proxyStrictSSL?: boolean;
 	};
 };
 

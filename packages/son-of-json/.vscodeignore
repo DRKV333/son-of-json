@@ -5,7 +5,11 @@
 !package.nls.json
 !README.md
 !icons/json.png
-!dist/node/*
+!dist/node/jsonClientMain.js
+!dist/node/jsonClientMain.js.map
+!dist/node/THIRD_PARTY.txt
 !server/package.json
 !server/README.md
-!server/dist/node/*
+!server/dist/node/jsonServerMain.js
+!server/dist/node/jsonServerMain.js.map
+!server/dist/node/THIRD_PARTY.txt
